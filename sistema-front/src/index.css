@@ -1,0 +1,129 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --font-inter: 'Inter', sans-serif;
+    
+    --background: 192 20% 22%;
+    --foreground: 0 0% 100%;
+    --card: 192 22% 26%;
+    --card-foreground: 0 0% 100%;
+    --popover: 192 22% 26%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 82 37% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 168 20% 38%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 192 20% 30%;
+    --muted-foreground: 90 14% 80%;
+    --accent: 168 20% 38%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 355 70% 56%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 192 15% 32%;
+    --input: 192 15% 32%;
+    --ring: 82 37% 50%;
+    --chart-1: 82 37% 50%;
+    --chart-2: 120 98% 41%;
+    --chart-3: 40 96% 51%;
+    --chart-4: 355 70% 56%;
+    --chart-5: 168 20% 38%;
+    --radius: 0.75rem;
+
+    --sidebar-background: 192 20% 22%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 82 37% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 168 20% 38%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 192 15% 32%;
+    --sidebar-ring: 82 37% 50%;
+
+    --success: 120 98% 41%;
+    --warning: 40 96% 51%;
+    --danger: 355 70% 56%;
+    --offline: 0 0% 40%;
+  }
+
+  .dark {
+    --background: 192 20% 22%;
+    --foreground: 0 0% 100%;
+    --card: 192 22% 26%;
+    --card-foreground: 0 0% 100%;
+    --popover: 192 22% 26%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 82 37% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 168 20% 38%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 192 20% 30%;
+    --muted-foreground: 90 14% 80%;
+    --accent: 168 20% 38%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 355 70% 56%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 192 15% 32%;
+    --input: 192 15% 32%;
+    --ring: 82 37% 50%;
+    --chart-1: 82 37% 50%;
+    --chart-2: 120 98% 41%;
+    --chart-3: 40 96% 51%;
+    --chart-4: 355 70% 56%;
+    --chart-5: 168 20% 38%;
+    --sidebar-background: 192 20% 22%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 82 37% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 168 20% 38%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 192 15% 32%;
+    --sidebar-ring: 82 37% 50%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-inter;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: hsl(192 20% 22%);
+}
+::-webkit-scrollbar-thumb {
+  background: hsl(192 15% 32%);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(168 20% 38%);
+}
+
+/* Leaflet overrides */
+.leaflet-container {
+  background: hsl(192 20% 22%) !important;
+  border-radius: 0.75rem;
+}
+.leaflet-popup-content-wrapper {
+  background: hsl(192 22% 26%) !important;
+  color: white !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.4) !important;
+}
+.leaflet-popup-tip {
+  background: hsl(192 22% 26%) !important;
+}
+.leaflet-popup-close-button {
+  color: white !important;
+}
