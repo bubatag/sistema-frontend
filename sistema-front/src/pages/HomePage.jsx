@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Bug, Radio, Heart, AlertTriangle, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
+import { base44 } from '@/api/base44Client';
 import { api } from '@/services/api';
 
 import KpiCard from '@/components/shared/KpiCard';
@@ -31,10 +32,10 @@ export default function HomePage() {
   React.useEffect(() => {
     async function loadUser() {
       try {
-        const response = await api.get('/auth/me');
-        setUserName(response.data.full_name || 'Produtor');
+        const user = await base44.auth.me();
+        setUserName(user.full_name || user.email || '');
       } catch {
-        setUserName('Produtor');
+        setUserName('');
       }
     }
 

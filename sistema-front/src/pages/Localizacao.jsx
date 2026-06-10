@@ -18,8 +18,8 @@ L.Icon.Default.mergeOptions({
 
 const statusColors = {
   saudavel: '#06D001',
-  estressado: '#FFB703',
-  fora_do_pasto: '#E63946',
+  estressado: '#E63946',
+  fora_do_pasto: '#FFB703',
   sem_conexao: '#666666',
 };
 
@@ -62,8 +62,9 @@ export default function Localizacao() {
 
       <div className="flex flex-wrap gap-3">
         {[
-          { label: 'No mapa', count: animalsWithLocation.length, color: '#06D001' },
-          { label: 'Fora do pasto', count: bubalinos.filter((b) => b.status === 'fora_do_pasto').length, color: '#E63946' },
+          { label: 'Saudável', count: animalsWithLocation.length, color: '#06D001' },
+          { label: 'Estressado', count: bubalinos.filter((b) => b.status === 'estressado').length, color: '#E63946' },
+          { label: 'Fora do pasto', count: bubalinos.filter((b) => b.status === 'fora_do_pasto').length, color: '#FFB703' },
           { label: 'Sem sinal', count: bubalinos.filter((b) => b.status === 'sem_conexao').length, color: '#666' },
         ].map((s, i) => (
           <div key={i} className="bg-card border border-border rounded-lg px-4 py-2 flex items-center gap-2">

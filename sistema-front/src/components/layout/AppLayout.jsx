@@ -4,6 +4,7 @@ import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import TopBar from './TopBar';
 
+import { base44 } from '@/api/base44Client';
 import { cn } from '@/lib/utils';
 
 export default function AppLayout() {
@@ -12,14 +13,16 @@ export default function AppLayout() {
   const [userName, setUserName] = useState('');
 
   useEffect(() => {
-    // TEMPORÁRIO até migrar auth
-    const user = JSON.parse(localStorage.getItem('user'));
-
-    if (user) {
-      setUserName(user.full_name || user.email || '');
-    } else {
-      setUserName('Produtor');
+    async function loadUser() {
+      try {
+        const user = await base44.auth.me();
+        setUserName(user.full_name || user.email || '');
+      } catch {
+        setUserName('');
+      }
     }
+
+    loadUser();
   }, []);
 
   return (

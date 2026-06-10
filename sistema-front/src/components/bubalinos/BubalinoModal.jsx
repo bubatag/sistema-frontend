@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 const statusOptions = [
   { value: 'saudavel', label: 'Saudavel' },
@@ -36,6 +38,8 @@ export default function BubalinoModal({ open, onOpenChange, bubalino, coleiras, 
 
   if (!open) return null;
 
+  const canSave = !!form.sexo && !saving;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-lg rounded-xl border border-border bg-card p-5 space-y-4">
@@ -44,7 +48,23 @@ export default function BubalinoModal({ open, onOpenChange, bubalino, coleiras, 
           <Input placeholder="Nome" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
           <Input placeholder="Etiqueta" value={form.numero_etiqueta} onChange={(e) => setForm({ ...form, numero_etiqueta: e.target.value })} />
           <Input placeholder="Idade" value={form.idade} onChange={(e) => setForm({ ...form, idade: e.target.value })} />
-          <Input placeholder="Sexo" value={form.sexo} onChange={(e) => setForm({ ...form, sexo: e.target.value })} />
+          <div className="rounded-lg border border-border px-3 py-2">
+            <RadioGroup
+              className="flex items-center gap-4"
+              value={form.sexo}
+              onValueChange={(sexo) => setForm({ ...form, sexo })}
+              required
+            >
+              <div className="flex items-center gap-2">
+                <RadioGroupItem id="sexo-macho" value="Macho" />
+                <Label htmlFor="sexo-macho" className="text-sm font-normal">Macho</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <RadioGroupItem id="sexo-femea" value="Femea" />
+                <Label htmlFor="sexo-femea" className="text-sm font-normal">Femea</Label>
+              </div>
+            </RadioGroup>
+          </div>
           <select
             className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
             value={form.status}
@@ -67,7 +87,7 @@ export default function BubalinoModal({ open, onOpenChange, bubalino, coleiras, 
         </div>
         <div className="flex justify-end gap-2">
           <Button variant="ghost" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button disabled={saving} onClick={() => onSave(form)}>{saving ? 'Salvando...' : 'Salvar'}</Button>
+          <Button disabled={!canSave} onClick={() => onSave(form)}>{saving ? 'Salvando...' : 'Salvar'}</Button>
         </div>
       </div>
     </div>

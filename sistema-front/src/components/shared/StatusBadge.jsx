@@ -11,8 +11,8 @@ const labels = {
 
 const colors = {
   saudavel: 'bg-[#06D001]/10 text-[#06D001] border-[#06D001]/30',
-  estressado: 'bg-[#FFB703]/10 text-[#FFB703] border-[#FFB703]/30',
-  fora_do_pasto: 'bg-[#E63946]/10 text-[#E63946] border-[#E63946]/30',
+  estressado: 'bg-[#E63946]/10 text-[#E63946] border-[#E63946]/30',
+  fora_do_pasto: 'bg-[#FFB703]/10 text-[#FFB703] border-[#FFB703]/30',
   sem_conexao: 'bg-muted text-muted-foreground border-border',
   ativa: 'bg-[#06D001]/10 text-[#06D001] border-[#06D001]/30',
   inativa: 'bg-muted text-muted-foreground border-border',
