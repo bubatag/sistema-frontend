@@ -37,16 +37,15 @@ export default function Dashboard() {
           {[1,2,3,4].map(i => <Skeleton key={i} className="h-32 rounded-xl bg-card" />)}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard title="Bubalinos Cadastrados" value={bubalinos.length} icon={Bug} trend={3} trendLabel="vs mês anterior" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          <KpiCard title="Bubalinos Cadastrados" value={bubalinos.length} icon={Bug} />
           <KpiCard title="Temp. Média do Rebanho" value={`${tempMedia}°C`} icon={Thermometer} accentColor="text-[#FFB703]" bgAccent="bg-[#FFB703]/10" />
           <KpiCard title="Coleiras Conectadas" value={coleirasAtivas} icon={Radio} accentColor="text-[#06D001]" bgAccent="bg-[#06D001]/10" />
-          <KpiCard title="Alertas Ativos" value={alertas} icon={AlertTriangle} accentColor="text-[#E63946]" bgAccent="bg-[#E63946]/10" />
         </div>
       )}
 
       {/* Charts */}
-      <DashboardCharts bubalinos={bubalinos} />
+      <DashboardCharts bubalinos={bubalinos} coleiras={coleiras} />
     </div>
   );
 }

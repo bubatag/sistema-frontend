@@ -46,7 +46,7 @@ export default function BubalinoModal({ open, onOpenChange, bubalino, coleiras, 
         <div className="text-lg font-semibold">{bubalino ? 'Editar Bubalino' : 'Cadastrar Bubalino'}</div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <Input placeholder="Nome" value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} />
-          <Input placeholder="Etiqueta" value={form.numero_etiqueta} onChange={(e) => setForm({ ...form, numero_etiqueta: e.target.value })} />
+          <Input placeholder="Tag" value={form.numero_etiqueta} onChange={(e) => setForm({ ...form, numero_etiqueta: e.target.value })} />
           <Input placeholder="Idade" value={form.idade} onChange={(e) => setForm({ ...form, idade: e.target.value })} />
           <div className="rounded-lg border border-border px-3 py-2">
             <RadioGroup

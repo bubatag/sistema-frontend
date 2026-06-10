@@ -1,30 +1,29 @@
 import React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Bug, Radio, Heart, AlertTriangle, ArrowRight } from 'lucide-react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Bug, Radio, Heart, AlertTriangle, ArrowRight, CheckCircle2, Thermometer, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { base44 } from '@/api/base44Client';
-import { api } from '@/services/api';
 
+import { Button } from '@/components/ui/button';
+import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import KpiCard from '@/components/shared/KpiCard';
+import StatusBadge from '@/components/shared/StatusBadge';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function HomePage() {
+  const [alertsOpen, setAlertsOpen] = React.useState(false);
+  const [alertToResolve, setAlertToResolve] = React.useState(null);
+  const queryClient = useQueryClient();
 
   const { data: bubalinos = [], isLoading: loadingB } = useQuery({
     queryKey: ['bubalinos'],
-    queryFn: async () => {
-      const response = await api.get('/bubalinos');
-      return response.data;
-    },
+    queryFn: () => base44.entities.Bubalino.list(),
   });
 
   const { data: coleiras = [], isLoading: loadingC } = useQuery({
     queryKey: ['coleiras'],
-    queryFn: async () => {
-      const response = await api.get('/coleiras');
-      return response.data;
-    },
+    queryFn: () => base44.entities.Coleira.list(),
   });
 
   const [userName, setUserName] = React.useState('');
@@ -46,11 +45,35 @@ export default function HomePage() {
     (b) => b.status === 'saudavel'
   ).length;
 
-  const alertas = bubalinos.filter(
+  const activeAlerts = bubalinos.filter(
     (b) => b.status && b.status !== 'saudavel'
-  ).length;
+  );
+
+  const alertas = activeAlerts.length;
 
   const isLoading = loadingB || loadingC;
+
+  const resolveAlertMutation = useMutation({
+    mutationFn: (bubalino) => base44.entities.Bubalino.update(bubalino.id, {
+      status: 'saudavel',
+      temperatura: bubalino.temperatura || 38.2,
+      batimentos: bubalino.batimentos || 60,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bubalinos'] });
+      setAlertToResolve(null);
+    },
+  });
+
+  const getAlertTitle = (status) => {
+    const labels = {
+      estressado: 'Sinais de estresse',
+      fora_do_pasto: 'Fora do pasto',
+      sem_conexao: 'Sem conexao',
+    };
+
+    return labels[status] || 'Alerta ativo';
+  };
 
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
@@ -78,8 +101,6 @@ export default function HomePage() {
             title="Total de Bubalinos"
             value={bubalinos.length}
             icon={Bug}
-            trend={5}
-            trendLabel="este mês"
           />
 
           <KpiCard
@@ -104,6 +125,7 @@ export default function HomePage() {
             icon={AlertTriangle}
             accentColor="text-[#FFB703]"
             bgAccent="bg-[#FFB703]/10"
+            onClick={() => setAlertsOpen(true)}
           />
 
         </div>
@@ -164,6 +186,75 @@ export default function HomePage() {
         ))}
 
       </div>
+
+      {alertsOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-2xl rounded-xl border border-border bg-card shadow-xl">
+            <div className="flex items-start justify-between gap-4 border-b border-border p-5">
+              <div>
+                <h2 className="text-lg font-semibold">Alertas ativos</h2>
+                <p className="text-sm text-muted-foreground">
+                  {alertas ? `${alertas} ocorrencia(s) aguardando resolucao` : 'Nenhum alerta ativo no momento'}
+                </p>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => setAlertsOpen(false)}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="max-h-[60vh] overflow-y-auto p-5">
+              {activeAlerts.length === 0 ? (
+                <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-background/40 p-8 text-center">
+                  <CheckCircle2 className="mb-3 h-10 w-10 text-[#06D001]" />
+                  <h3 className="font-semibold">Tudo resolvido</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">O rebanho nao possui alertas ativos.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {activeAlerts.map((bubalino) => (
+                    <div key={bubalino.id} className="rounded-xl border border-border bg-background/40 p-4">
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="font-semibold">{bubalino.nome}</h3>
+                            <StatusBadge status={bubalino.status} />
+                          </div>
+                          <p className="text-sm text-muted-foreground">{getAlertTitle(bubalino.status)}</p>
+                          <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+                            <span>Etiqueta: {bubalino.numero_etiqueta}</span>
+                            <span className="flex items-center gap-1">
+                              <Thermometer className="h-3.5 w-3.5 text-[#FFB703]" />
+                              {bubalino.temperatura ? `${bubalino.temperatura} C` : 'Sem leitura'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <Button
+                          onClick={() => setAlertToResolve(bubalino)}
+                          disabled={resolveAlertMutation.isPending}
+                          className="bg-primary hover:bg-[#06D001]"
+                        >
+                          <CheckCircle2 className="mr-2 h-4 w-4" />
+                          Resolver alerta
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={!!alertToResolve}
+        onOpenChange={() => setAlertToResolve(null)}
+        title="Resolver alerta"
+        description={`Confirmar resolucao do alerta de "${alertToResolve?.nome}"?`}
+        confirmLabel={resolveAlertMutation.isPending ? 'Resolvendo...' : 'Resolver'}
+        onConfirm={() => alertToResolve && resolveAlertMutation.mutate(alertToResolve)}
+      />
     </div>
   );
 }

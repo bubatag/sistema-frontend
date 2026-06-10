@@ -1,5 +1,5 @@
 const STORAGE_KEY = 'base44-data';
-const MOCK_DATA_VERSION = '2026-06-10-demo';
+const MOCK_DATA_VERSION = '2026-06-10-demo-2';
 
 const defaultData = {
   mockVersion: MOCK_DATA_VERSION,
@@ -116,6 +116,20 @@ const defaultData = {
       latitude: -1.4557,
       longitude: -48.4912,
     },
+    {
+      id: 'b9',
+      nome: 'Nina',
+      numero_etiqueta: 'BB-009',
+      status: 'estressado',
+      temperatura: 39.7,
+      batimentos: 82,
+      raca: 'Murrah',
+      idade: 3,
+      sexo: 'Femea',
+      coleira_id: 'c10',
+      latitude: -1.4549,
+      longitude: -48.4938,
+    },
   ],
   coleiras: [
     {
@@ -207,6 +221,16 @@ const defaultData = {
       endereco_ip: '',
       bubalino_id: '',
       bubalino_nome: '',
+    },
+    {
+      id: 'c10',
+      numero_etiqueta: 'CL-109',
+      status: 'ativa',
+      bateria: 46,
+      localizacao: 'Pasto Central',
+      endereco_ip: '192.168.0.53',
+      bubalino_id: 'b9',
+      bubalino_nome: 'Nina',
     },
   ],
   user: {

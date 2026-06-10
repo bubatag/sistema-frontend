@@ -46,7 +46,7 @@ export default function ColeiraModal({ open, onOpenChange, coleira, bubalinos, o
       <div className="w-full max-w-lg rounded-xl border border-border bg-card p-5 space-y-4">
         <div className="text-lg font-semibold">{coleira ? 'Editar Coleira' : 'Cadastrar Coleira'}</div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <Input placeholder="Etiqueta" value={form.numero_etiqueta} onChange={(e) => setForm({ ...form, numero_etiqueta: e.target.value })} />
+          <Input placeholder="Tag" value={form.numero_etiqueta} onChange={(e) => setForm({ ...form, numero_etiqueta: e.target.value })} />
           <Input placeholder="Localizacao" value={form.localizacao} onChange={(e) => setForm({ ...form, localizacao: e.target.value })} />
           <Input placeholder="Endereco IP" value={form.endereco_ip} onChange={(e) => setForm({ ...form, endereco_ip: e.target.value })} />
           <Input placeholder="Bateria (%)" value={form.bateria} onChange={(e) => setForm({ ...form, bateria: e.target.value })} />
