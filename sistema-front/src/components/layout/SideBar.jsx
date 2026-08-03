@@ -47,7 +47,7 @@ const handleLogout = () => {
             {!collapsed && (
               <div>
                 <h1 className="font-bold text-lg tracking-tight">BUBATAG</h1>
-                <p className="text-xs text-muted-foreground">Rastreamento Inteligente</p>
+                <p className="text-xs text-muted-foreground">Monitoramento Inteligente</p>
               </div>
             )}
           </div>
