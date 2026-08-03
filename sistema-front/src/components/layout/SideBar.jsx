@@ -42,9 +42,8 @@ const handleLogout = () => {
         {/* Logo */}
         <div className="p-5 flex items-center justify-between border-b border-border">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center">
-              <span className="text-lg font-bold text-primary">B</span>
-            </div>
+              <img src="/bubatag.svg" alt="Logo Bubatag" className="h-10 w-auto" />
+
             {!collapsed && (
               <div>
                 <h1 className="font-bold text-lg tracking-tight">BUBATAG</h1>
