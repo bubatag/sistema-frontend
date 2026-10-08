@@ -1,0 +1,26 @@
+﻿name: CI/CD - Bubatag Frontend
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Validar Docker Compose
+        run: docker compose -f ./sistema-front/docker-compose.yml config
+
+      - name: Construir imagem do frontend
+        run: docker compose -f ./sistema-front/docker-compose.yml build
