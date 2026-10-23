@@ -1,19 +1,38 @@
-import React from 'react';
+
+import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
-import { MapContainer, TileLayer, Marker, Popup, Circle } from 'react-leaflet';
-import { Skeleton } from '@/components/ui/skeleton';
-import StatusBadge from '@/components/shared/StatusBadge';
-import { Thermometer, Heart, Clock, MapPin } from 'lucide-react';
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Popup,
+  Circle,
+} from 'react-leaflet';
 import L from 'leaflet';
+import {
+  Thermometer,
+  Heart,
+  Clock,
+  MapPin,
+  RefreshCw,
+} from 'lucide-react';
+
+import { api } from '@/services/api';
+import { useAuth } from '@/lib/AuthContext';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import StatusBadge from '@/components/shared/StatusBadge';
 import 'leaflet/dist/leaflet.css';
 
-// Fix default icon issue
 delete L.Icon.Default.prototype._getIconUrl;
+
 L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
-  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+  iconRetinaUrl:
+    'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  iconUrl:
+    'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  shadowUrl:
+    'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
 });
 
 const statusColors = {
@@ -23,105 +42,352 @@ const statusColors = {
   sem_conexao: '#666666',
 };
 
+const pastureCenter = [-1.4558, -48.4902];
+const pastureRadius = 500;
+
 function createCustomIcon(status) {
   const color = statusColors[status] || '#666666';
+
   return L.divIcon({
     className: 'custom-marker',
     html: `<div style="
-      width: 32px; height: 32px; border-radius: 50% 50% 50% 0;
-      background: ${color}; transform: rotate(-45deg);
-      display: flex; align-items: center; justify-content: center;
-      border: 3px solid white; box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-    "><div style="transform: rotate(45deg); font-size: 12px;">B</div></div>`,
+      width:32px;height:32px;border-radius:50% 50% 50% 0;
+      background:${color};transform:rotate(-45deg);
+      display:flex;align-items:center;justify-content:center;
+      border:3px solid white;box-shadow:0 4px 12px rgba(0,0,0,.4);
+    "><div style="transform:rotate(45deg);font-size:12px;color:white;font-weight:bold">B</div></div>`,
     iconSize: [32, 32],
     iconAnchor: [16, 32],
     popupAnchor: [0, -32],
   });
 }
 
-const pastureCenter = [-1.4558, -48.4902];
-const pastureRadius = 500;
+function parseCoordinate(value) {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value.replace(',', '.'));
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function getLocation(bubalino) {
+  const locations = Array.isArray(bubalino.localizacao)
+    ? bubalino.localizacao
+    : [];
+
+  const location = [...locations]
+    .reverse()
+    .find((item) => item.ativo !== false) || locations.at(-1);
+
+  if (!location) return null;
+
+  const latitude = parseCoordinate(location.latitude);
+  const longitude = parseCoordinate(location.longitude);
+
+  if (
+    latitude === null ||
+    longitude === null ||
+    latitude < -90 ||
+    latitude > 90 ||
+    longitude < -180 ||
+    longitude > 180
+  ) {
+    return null;
+  }
+
+  return {
+    latitude,
+    longitude,
+    data: location.data || location.data_localizacao || null,
+  };
+}
+
+function getLatestTelemetry(bubalino) {
+  const readings = Array.isArray(bubalino.dados) ? bubalino.dados : [];
+
+  return [...readings].sort(
+    (a, b) =>
+      new Date(b.data || 0).getTime() -
+      new Date(a.data || 0).getTime()
+  )[0] || {};
+}
+
+function getStressStatus(bubalino) {
+  const history = Array.isArray(bubalino.historico_estresse)
+    ? bubalino.historico_estresse
+    : [];
+
+  const latest = [...history]
+    .filter((item) => item.ativo !== false)
+    .sort(
+      (a, b) =>
+        new Date(b.data_estresse || 0).getTime() -
+        new Date(a.data_estresse || 0).getTime()
+    )[0];
+
+  const status = String(latest?.data_estresse || '').toLowerCase();
+
+  if (status.includes('crítico') || status.includes('critico')) {
+    return 'estressado';
+  }
+
+  if (
+    status.includes('estressado') ||
+    status.includes('térmico') ||
+    status.includes('termico') ||
+    status.includes('alerta')
+  ) {
+    return 'estressado';
+  }
+
+  return 'saudavel';
+}
+
+function normalizeBubalino(bubalino, coleira) {
+  const location = getLocation(bubalino);
+  const telemetry = getLatestTelemetry(bubalino);
+
+  return {
+    id: bubalino._id || bubalino.n_etiqueta,
+    nome: bubalino.n_etiqueta || 'Bubalino sem etiqueta',
+    raca: bubalino.raca || 'Não informada',
+    latitude: location?.latitude ?? null,
+    longitude: location?.longitude ?? null,
+    dataLocalizacao: location?.data,
+    temperatura: telemetry.temperatura ?? null,
+    batimentos: telemetry.batimento_cardiaco ?? null,
+    dataTelemetria: telemetry.data || null,
+    status: getStressStatus(bubalino),
+    coleira: coleira.n_coleira || '—',
+  };
+}
 
 export default function Localizacao() {
-  const { data: bubalinos = [], isLoading } = useQuery({
-    queryKey: ['bubalinos'],
-    queryFn: () => base44.entities.Bubalino.list(),
+  const { user } = useAuth();
+
+  const usuario = useMemo(() => {
+    try {
+      return user || JSON.parse(localStorage.getItem('usuario') || 'null');
+    } catch {
+      return null;
+    }
+  }, [user]);
+
+  const usuarioId = usuario?._id || usuario?.id;
+
+  const {
+    data: bubalinos = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+  } = useQuery({
+    queryKey: ['localizacao-bubalinos', usuarioId],
+    enabled: Boolean(usuarioId),
+    queryFn: async () => {
+      const response = await api.get(
+        `/api/coleiras/usuario/${usuarioId}`
+      );
+
+      const body = response.data;
+      const coleiras = Array.isArray(body)
+        ? body
+        : body.coleiras || body.data || [];
+
+      return coleiras
+        .filter((coleira) => coleira.bubalino)
+        .map((coleira) =>
+          normalizeBubalino(coleira.bubalino, coleira)
+        );
+    },
+    refetchInterval: 30000,
   });
 
-  const animalsWithLocation = bubalinos.filter((b) => b.latitude && b.longitude);
-  const center = animalsWithLocation.length > 0
-    ? [animalsWithLocation[0].latitude, animalsWithLocation[0].longitude]
+  const animalsWithLocation = bubalinos.filter(
+    (animal) =>
+      animal.latitude !== null && animal.longitude !== null
+  );
+
+  const center = animalsWithLocation.length
+    ? [
+        animalsWithLocation[0].latitude,
+        animalsWithLocation[0].longitude,
+      ]
     : pastureCenter;
 
+  const counts = {
+    saudavel: bubalinos.filter((b) => b.status === 'saudavel').length,
+    estressado: bubalinos.filter((b) => b.status === 'estressado').length,
+    fora_do_pasto: 0,
+    sem_conexao: bubalinos.filter((b) => !b.dataTelemetria).length,
+  };
+
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      <div>
-        <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Localizacao</h1>
-        <p className="text-muted-foreground mt-1">Rastreamento em tempo real do rebanho</p>
+    <div className="mx-auto max-w-7xl space-y-6">
+      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+            Localização
+          </h1>
+          <p className="mt-1 text-muted-foreground">
+            Rastreamento dos bubalinos cadastrados na API
+          </p>
+        </div>
+
+        <Button
+          variant="outline"
+          onClick={() => refetch()}
+          disabled={isFetching}
+        >
+          <RefreshCw
+            className={`mr-2 h-4 w-4 ${isFetching ? 'animate-spin' : ''}`}
+          />
+          Atualizar
+        </Button>
       </div>
+
+      {isError && (
+        <div className="rounded-xl border border-destructive/30 bg-card p-5">
+          <p className="font-medium text-destructive">
+            Não foi possível carregar os dados de localização.
+          </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {error?.response?.data?.mensagem ||
+              error?.message ||
+              'Verifique se a API está funcionando e se você está autenticado.'}
+          </p>
+          <Button
+            className="mt-3"
+            variant="outline"
+            onClick={() => refetch()}
+          >
+            Tentar novamente
+          </Button>
+        </div>
+      )}
+
+      {!usuarioId && (
+        <div className="rounded-xl border border-border bg-card p-5">
+          Não foi possível identificar o usuário. Entre novamente no sistema.
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-3">
         {[
-          { label: 'Saudável', count: animalsWithLocation.length, color: '#06D001' },
-          { label: 'Estressado', count: bubalinos.filter((b) => b.status === 'estressado').length, color: '#E63946' },
-          { label: 'Fora do pasto', count: bubalinos.filter((b) => b.status === 'fora_do_pasto').length, color: '#FFB703' },
-          { label: 'Sem sinal', count: bubalinos.filter((b) => b.status === 'sem_conexao').length, color: '#666' },
-        ].map((s, i) => (
-          <div key={i} className="bg-card border border-border rounded-lg px-4 py-2 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: s.color }} />
-            <span className="text-sm text-muted-foreground">{s.label}:</span>
-            <span className="text-sm font-semibold">{s.count}</span>
+          { label: 'Saudável', count: counts.saudavel, color: '#06D001' },
+          { label: 'Estressado', count: counts.estressado, color: '#E63946' },
+          { label: 'Fora do pasto', count: counts.fora_do_pasto, color: '#FFB703' },
+          { label: 'Sem sinal', count: counts.sem_conexao, color: '#666666' },
+        ].map((item) => (
+          <div
+            key={item.label}
+            className="flex items-center gap-2 rounded-lg border border-border bg-card px-4 py-2"
+          >
+            <span
+              className="h-2 w-2 rounded-full"
+              style={{ backgroundColor: item.color }}
+            />
+            <span className="text-sm text-muted-foreground">
+              {item.label}:
+            </span>
+            <span className="text-sm font-semibold">{item.count}</span>
           </div>
         ))}
       </div>
 
       {isLoading ? (
-        <Skeleton className="h-[500px] md:h-[600px] rounded-xl bg-card" />
+        <Skeleton className="h-[500px] rounded-xl bg-card md:h-[600px]" />
       ) : (
-        <div className="rounded-xl border border-border overflow-hidden" style={{ height: '600px' }}>
-          <MapContainer center={center} zoom={15} style={{ height: '100%', width: '100%' }} scrollWheelZoom={true}>
+        <div
+          className="overflow-hidden rounded-xl border border-border"
+          style={{ height: 600 }}
+        >
+          <MapContainer
+            key={`${center[0]}-${center[1]}`}
+            center={center}
+            zoom={15}
+            style={{ height: '100%', width: '100%' }}
+            scrollWheelZoom
+          >
             <TileLayer
-              attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
 
             <Circle
-              center={pastureCenter}
+              center={center}
               radius={pastureRadius}
-              pathOptions={{ color: '#90A955', weight: 2, fillColor: '#90A955', fillOpacity: 0.05, dashArray: '8 4' }}
+              pathOptions={{
+                color: '#90A955',
+                weight: 2,
+                fillColor: '#90A955',
+                fillOpacity: 0.05,
+                dashArray: '8 4',
+              }}
             />
 
-            {animalsWithLocation.map((b) => (
-              <Marker key={b.id} position={[b.latitude, b.longitude]} icon={createCustomIcon(b.status)}>
+            {animalsWithLocation.map((animal) => (
+              <Marker
+                key={animal.id}
+                position={[animal.latitude, animal.longitude]}
+                icon={createCustomIcon(animal.status)}
+              >
                 <Popup>
                   <div className="min-w-[200px] space-y-3 p-1">
-                    <div className="flex items-center justify-between">
-                      <h3 className="font-bold text-base text-white">{b.nome}</h3>
-                      <StatusBadge status={b.status} />
+                    <h3 className="font-bold">
+                      {animal.nome}
+                    </h3>
+
+                    <p className="text-sm">
+                      Raça: {animal.raca}
+                    </p>
+
+                    <p className="text-sm">
+                      Coleira: {animal.coleira}
+                    </p>
+
+                    <StatusBadge status={animal.status} />
+
+                    <div className="flex items-center gap-2">
+                      <Thermometer className="h-4 w-4 text-amber-500" />
+                      <span className="text-sm">
+                        {animal.temperatura != null
+                          ? `${animal.temperatura} °C`
+                          : 'Temperatura indisponível'}
+                      </span>
                     </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="flex items-center gap-1.5">
-                        <Thermometer className="w-3.5 h-3.5 text-[#FFB703]" />
-                        <span className="text-xs text-gray-300">{b.temperatura ? `${b.temperatura}°C` : '—'}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Heart className="w-3.5 h-3.5 text-[#E63946]" />
-                        <span className="text-xs text-gray-300">{b.batimentos ? `${b.batimentos} bpm` : '—'}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <MapPin className="w-3.5 h-3.5 text-[#90A955]" />
-                        <span className="text-xs text-gray-300">{b.latitude?.toFixed(4)}, {b.longitude?.toFixed(4)}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Clock className="w-3.5 h-3.5 text-gray-400" />
-                        <span className="text-xs text-gray-300">Agora</span>
-                      </div>
+
+                    <div className="flex items-center gap-2">
+                      <Heart className="h-4 w-4 text-red-500" />
+                      <span className="text-sm">
+                        {animal.batimentos != null
+                          ? `${animal.batimentos} bpm`
+                          : 'Batimentos indisponíveis'}
+                      </span>
                     </div>
-                    {b.status === 'fora_do_pasto' && (
-                      <div className="bg-[#E63946]/20 border border-[#E63946]/40 rounded-lg px-2 py-1.5 text-xs text-[#E63946] font-medium text-center">
-                        Alerta: animal fora do perimetro
-                      </div>
-                    )}
+
+                    <div className="flex items-center gap-2">
+                      <MapPin className="h-4 w-4 text-green-600" />
+                      <span className="text-xs">
+                        {animal.latitude.toFixed(5)},{' '}
+                        {animal.longitude.toFixed(5)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Clock className="h-4 w-4" />
+                      <span className="text-xs">
+                        {animal.dataTelemetria
+                          ? new Date(animal.dataTelemetria).toLocaleString('pt-BR')
+                          : 'Sem data de telemetria'}
+                      </span>
+                    </div>
                   </div>
                 </Popup>
               </Marker>
@@ -130,11 +396,16 @@ export default function Localizacao() {
         </div>
       )}
 
-      {animalsWithLocation.length === 0 && !isLoading && (
-        <div className="bg-card border border-border rounded-xl p-8 text-center">
-          <MapPin className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
-          <h3 className="font-semibold text-lg">Sem dados de localizacao</h3>
-          <p className="text-sm text-muted-foreground mt-1">Nenhum bubalino possui coordenadas GPS cadastradas.</p>
+      {!isLoading && !isError && animalsWithLocation.length === 0 && (
+        <div className="rounded-xl border border-border bg-card p-8 text-center">
+          <MapPin className="mx-auto mb-3 h-12 w-12 text-muted-foreground" />
+          <h3 className="text-lg font-semibold">
+            Sem coordenadas GPS
+          </h3>
+          <p className="mt-1 text-sm text-muted-foreground">
+            A API não retornou coordenadas válidas para os bubalinos deste usuário.
+            Os marcadores só aparecerão quando houver dados de localização.
+          </p>
         </div>
       )}
     </div>

@@ -3,8 +3,6 @@ import { Outlet } from 'react-router-dom';
 
 import Sidebar from './SideBar';
 import TopBar from './TopBar';
-
-import { base44 } from '@/api/base44Client';
 import { cn } from '@/lib/utils';
 
 export default function AppLayout() {
@@ -13,21 +11,30 @@ export default function AppLayout() {
   const [userName, setUserName] = useState('');
 
   useEffect(() => {
-    async function loadUser() {
-      try {
-        const user = await base44.auth.me();
-        setUserName(user.full_name || user.email || '');
-      } catch {
-        setUserName('');
-      }
-    }
+    try {
+      const usuarioSalvo = localStorage.getItem('usuario');
 
-    loadUser();
+      if (!usuarioSalvo) {
+        setUserName('');
+        return;
+      }
+
+      const usuario = JSON.parse(usuarioSalvo);
+
+      setUserName(
+        usuario.nome ||
+        usuario.full_name ||
+        usuario.email ||
+        ''
+      );
+    } catch (error) {
+      console.error('Erro ao carregar usuário:', error);
+      setUserName('');
+    }
   }, []);
 
   return (
     <div className="min-h-screen bg-background">
-
       <Sidebar
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
@@ -41,7 +48,6 @@ export default function AppLayout() {
           collapsed ? 'lg:ml-20' : 'lg:ml-64'
         )}
       >
-
         <TopBar
           onMenuClick={() => setSidebarOpen(true)}
           userName={userName}
@@ -50,9 +56,7 @@ export default function AppLayout() {
         <main className="p-4 md:p-6 lg:p-8">
           <Outlet />
         </main>
-
       </div>
     </div>
   );
 }
-

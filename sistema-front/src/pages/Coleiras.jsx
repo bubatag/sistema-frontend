@@ -1,130 +1,224 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
-import { Button } from '@/components/ui/button';
+
+import React, { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { Radio, Search, RefreshCw, Plus, Pencil, Trash2 } from 'lucide-react';
+
+import { api } from '@/services/api';
+import { useAuth } from '@/lib/AuthContext';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Pencil, Trash2, Radio } from 'lucide-react';
-import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
 import StatusBadge from '@/components/shared/StatusBadge';
-import EmptyState from '@/components/shared/EmptyState';
-import ConfirmDialog from '@/components/shared/ConfirmDialog';
-import ColeiraModal from '@/components/coleiras/ColeiraModal';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function Coleiras() {
   const [search, setSearch] = useState('');
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const queryClient = useQueryClient();
+  const { user } = useAuth();
 
-  const { data: coleiras = [], isLoading } = useQuery({
-    queryKey: ['coleiras'],
-    queryFn: () => base44.entities.Coleira.list(),
-  });
-
-  const { data: bubalinos = [] } = useQuery({
-    queryKey: ['bubalinos'],
-    queryFn: () => base44.entities.Bubalino.list(),
-  });
-
-  const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.Coleira.create(data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['coleiras'] }); setModalOpen(false); toast.success('Coleira cadastrada!'); },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.Coleira.update(id, data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['coleiras'] }); setModalOpen(false); setEditing(null); toast.success('Coleira atualizada!'); },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.Coleira.delete(id),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['coleiras'] }); setDeleteTarget(null); toast.success('Coleira excluída!'); },
-  });
-
-  const handleSave = (data) => {
-    if (data.bubalino_id === 'none') { data.bubalino_id = ''; data.bubalino_nome = ''; }
-    if (editing) {
-      updateMutation.mutate({ id: editing.id, data });
-    } else {
-      createMutation.mutate(data);
+  const usuario = useMemo(() => {
+    try {
+      return user || JSON.parse(localStorage.getItem('usuario') || 'null');
+    } catch {
+      return null;
     }
-  };
+  }, [user]);
 
-  const filtered = coleiras.filter(c =>
-    !search || c.numero_etiqueta?.toLowerCase().includes(search.toLowerCase()) || c.bubalino_nome?.toLowerCase().includes(search.toLowerCase())
-  );
+  const usuarioId = usuario?._id || usuario?.id;
+
+  const {
+    data: coleiras = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+  } = useQuery({
+    queryKey: ['coleiras', usuarioId],
+    enabled: Boolean(usuarioId),
+    queryFn: async () => {
+      const response = await api.get(
+        `/api/coleiras/usuario/${usuarioId}`
+      );
+
+      const dados = response.data;
+      const lista = Array.isArray(dados)
+        ? dados
+        : dados.coleiras || dados.data || [];
+
+      return lista;
+    },
+  });
+
+  const filtered = coleiras.filter((c) => {
+    const termo = search.toLowerCase();
+
+    return (
+      !termo ||
+      String(c.n_coleira || '').toLowerCase().includes(termo) ||
+      String(c.IP || '').toLowerCase().includes(termo) ||
+      String(c.coleira_localizacao || '').toLowerCase().includes(termo) ||
+      String(c.bubalino?.n_etiqueta || '').toLowerCase().includes(termo) ||
+      String(c.bubalino?.raca || '').toLowerCase().includes(termo)
+    );
+  });
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="mx-auto max-w-7xl space-y-6">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Coleiras</h1>
-          <p className="text-muted-foreground mt-1">Gerencie as coleiras IoT do rebanho</p>
+          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+            Coleiras
+          </h1>
+          <p className="mt-1 text-muted-foreground">
+            Gerencie as coleiras IoT do rebanho
+          </p>
         </div>
-        <Button onClick={() => { setEditing(null); setModalOpen(true); }} className="bg-primary hover:bg-[#06D001]">
-          <Plus className="w-4 h-4 mr-2" /> Cadastrar Coleira
+
+        <Button
+          disabled
+          title="O cadastro precisa ser implementado na API"
+          className="bg-primary"
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Cadastrar Coleira
         </Button>
       </div>
 
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input placeholder="Buscar coleira..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 bg-card border-border" />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="relative max-w-sm flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por coleira, IP ou bubalino..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="border-border bg-card pl-9"
+          />
+        </div>
+
+        <Button
+          variant="outline"
+          onClick={() => refetch()}
+          disabled={isFetching}
+        >
+          <RefreshCw
+            className={`mr-2 h-4 w-4 ${isFetching ? 'animate-spin' : ''}`}
+          />
+          Atualizar dados
+        </Button>
       </div>
 
       {isLoading ? (
         <div className="space-y-3">
-          {[1,2,3,4].map(i => <Skeleton key={i} className="h-14 rounded-lg bg-card" />)}
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-14 rounded-lg bg-card" />
+          ))}
+        </div>
+      ) : isError ? (
+        <div className="rounded-xl border border-destructive/30 bg-card p-6">
+          <p className="font-medium text-destructive">
+            Não foi possível carregar as coleiras.
+          </p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {error?.response?.data?.mensagem ||
+              error?.message ||
+              'Verifique a API e sua autenticação.'}
+          </p>
+          <Button
+            className="mt-4"
+            variant="outline"
+            onClick={() => refetch()}
+          >
+            Tentar novamente
+          </Button>
+        </div>
+      ) : !usuarioId ? (
+        <div className="rounded-xl border border-border bg-card p-6">
+          Não foi possível identificar o usuário. Entre novamente no sistema.
         </div>
       ) : filtered.length === 0 ? (
-        <EmptyState icon={Radio} title="Nenhuma coleira encontrada" description="Cadastre coleiras IoT para monitorar seus bubalinos." actionLabel="Cadastrar Coleira" onAction={() => { setEditing(null); setModalOpen(true); }} />
+        <div className="rounded-xl border border-border bg-card p-10 text-center">
+          <Radio className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
+          <p className="font-medium">Nenhuma coleira encontrada</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {coleiras.length === 0
+              ? 'A API não retornou coleiras para este usuário.'
+              : 'Tente alterar o termo da busca.'}
+          </p>
+        </div>
       ) : (
-        <div className="bg-card rounded-xl border border-border overflow-hidden">
+        <div className="overflow-hidden rounded-xl border border-border bg-card">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
-                  <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Tag</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3 hidden sm:table-cell">Localização</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3 hidden md:table-cell">IP</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Bubalino</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3 hidden sm:table-cell">Bateria</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Status</th>
-                  <th className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Ações</th>
+                  {['Tag', 'Localização', 'IP', 'Bubalino', 'Status'].map(
+                    (titulo) => (
+                      <th
+                        key={titulo}
+                        className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground"
+                      >
+                        {titulo}
+                      </th>
+                    )
+                  )}
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    Ações
+                  </th>
                 </tr>
               </thead>
+
               <tbody>
-                {filtered.map((c) => (
-                  <tr key={c.id} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
-                    <td className="px-4 py-3 font-mono text-sm font-medium">{c.numero_etiqueta}</td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground hidden sm:table-cell">{c.localizacao || '—'}</td>
-                    <td className="px-4 py-3 text-sm font-mono text-muted-foreground hidden md:table-cell">{c.endereco_ip || '—'}</td>
-                    <td className="px-4 py-3 text-sm">{c.bubalino_nome || '—'}</td>
-                    <td className="px-4 py-3 text-sm hidden sm:table-cell">
-                      {c.bateria != null ? (
-                        <div className="flex items-center gap-2">
-                          <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-                            <div
-                              className="h-full rounded-full"
-                              style={{
-                                width: `${c.bateria}%`,
-                                backgroundColor: c.bateria > 50 ? '#06D001' : c.bateria > 20 ? '#FFB703' : '#E63946'
-                              }}
-                            />
-                          </div>
-                          <span className="text-xs text-muted-foreground">{c.bateria}%</span>
-                        </div>
-                      ) : '—'}
+                {filtered.map((c, index) => (
+                  <tr
+                    key={c._id || c.n_coleira || index}
+                    className="border-b border-border/50 transition-colors hover:bg-muted/20"
+                  >
+                    <td className="px-4 py-3 font-mono text-sm font-medium">
+                      {c.n_coleira || '—'}
                     </td>
-                    <td className="px-4 py-3"><StatusBadge status={c.status || 'inativa'} /></td>
+
+                    <td className="px-4 py-3 text-sm text-muted-foreground">
+                      {c.coleira_localizacao || '—'}
+                    </td>
+
+                    <td className="px-4 py-3 font-mono text-sm text-muted-foreground">
+                      {c.IP || '—'}
+                    </td>
+
+                    <td className="px-4 py-3 text-sm">
+                      <div>{c.bubalino?.n_etiqueta || '—'}</div>
+                      {c.bubalino?.raca && (
+                        <div className="text-xs text-muted-foreground">
+                          {c.bubalino.raca}
+                        </div>
+                      )}
+                    </td>
+
+                    <td className="px-4 py-3">
+                      <StatusBadge
+                        status={c.ativo === true ? 'ativa' : 'inativa'}
+                      />
+                    </td>
+
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => { setEditing(c); setModalOpen(true); }}>
-                          <Pencil className="w-4 h-4" />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground"
+                          disabled
+                          title="Edição ainda não disponível na API"
+                        >
+                          <Pencil className="h-4 w-4" />
                         </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => setDeleteTarget(c)}>
-                          <Trash2 className="w-4 h-4" />
+
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground"
+                          disabled
+                          title="Exclusão ainda não disponível na API"
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </div>
                     </td>
@@ -133,12 +227,12 @@ export default function Coleiras() {
               </tbody>
             </table>
           </div>
+
+          <div className="px-4 py-3 text-xs text-muted-foreground">
+            Exibindo {filtered.length} de {coleiras.length} coleira(s).
+          </div>
         </div>
       )}
-
-      <ColeiraModal open={modalOpen} onOpenChange={setModalOpen} coleira={editing} bubalinos={bubalinos} onSave={handleSave} saving={createMutation.isPending || updateMutation.isPending} />
-
-      <ConfirmDialog open={!!deleteTarget} onOpenChange={() => setDeleteTarget(null)} title="Excluir Coleira" description={`Tem certeza que deseja excluir a coleira "${deleteTarget?.numero_etiqueta}"?`} onConfirm={() => deleteMutation.mutate(deleteTarget.id)} confirmLabel="Excluir" destructive />
     </div>
   );
 }

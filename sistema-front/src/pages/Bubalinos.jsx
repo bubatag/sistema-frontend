@@ -1,138 +1,338 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { base44 } from '@/api/base44Client';
+
+import React, { useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/services/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Pencil, Trash2, Bug } from 'lucide-react';
-import { toast } from 'sonner';
+import {
+  Search,
+  Bug,
+  Thermometer,
+  HeartPulse,
+  RefreshCw,
+} from 'lucide-react';
 import StatusBadge from '@/components/shared/StatusBadge';
 import EmptyState from '@/components/shared/EmptyState';
-import ConfirmDialog from '@/components/shared/ConfirmDialog';
-import BubalinoModal from '@/components/bubalinos/BubalinoModal';
 import { Skeleton } from '@/components/ui/skeleton';
+
+function calcularIdade(dataNascimento) {
+  if (!dataNascimento) return '—';
+
+  const nascimento = new Date(dataNascimento);
+
+  if (Number.isNaN(nascimento.getTime())) return '—';
+
+  const hoje = new Date();
+  let idade = hoje.getFullYear() - nascimento.getFullYear();
+
+  const aindaNaoFezAniversario =
+    hoje.getMonth() < nascimento.getMonth() ||
+    (hoje.getMonth() === nascimento.getMonth() &&
+      hoje.getDate() < nascimento.getDate());
+
+  if (aindaNaoFezAniversario) idade--;
+
+  return `${Math.max(0, idade)} ${idade === 1 ? 'ano' : 'anos'}`;
+}
+
+function normalizarStatus(estado) {
+  const valor = String(estado || '').toLowerCase();
+
+  if (valor === 'normal') return 'saudavel';
+
+  if (valor.includes('estress')) return 'estressado';
+
+  if (valor === 'alerta') return 'estressado';
+
+  if (valor === 'ocioso') return 'saudavel';
+
+  return 'sem_conexao';
+}
+
+function obterDadosAtuais(bubalino) {
+  const dados = (bubalino.dados || []).filter(
+    (item) => item.ativo !== false
+  );
+
+  return dados.length ? dados[dados.length - 1] : null;
+}
+
+function obterEstadoEstresse(bubalino) {
+  const historico = (bubalino.historico_estresse || []).filter(
+    (item) => item.ativo !== false
+  );
+
+  return historico.length
+    ? historico[historico.length - 1].estado_estresse
+    : 'Sem leitura';
+}
+
+function formatarSexo(sexo) {
+  if (sexo === 'Masculino') return 'Macho';
+  if (sexo === 'Feminino') return 'Fêmea';
+  return sexo || '—';
+}
 
 export default function Bubalinos() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState(null);
-  const [deleteTarget, setDeleteTarget] = useState(null);
-  const queryClient = useQueryClient();
 
-  const { data: bubalinos = [], isLoading } = useQuery({
-    queryKey: ['bubalinos'],
-    queryFn: () => base44.entities.Bubalino.list(),
+  const usuarioSalvo = localStorage.getItem('usuario');
+  let usuarioId = null;
+
+  try {
+    usuarioId = usuarioSalvo ? JSON.parse(usuarioSalvo)?.id : null;
+  } catch {
+    usuarioId = null;
+  }
+
+  const {
+    data: coleiras = [],
+    isLoading,
+    isError,
+    error,
+    refetch,
+    isFetching,
+  } = useQuery({
+    queryKey: ['coleiras', usuarioId],
+    enabled: Boolean(usuarioId),
+    queryFn: async () => {
+      const response = await api.get(
+        `/api/coleiras/usuario/${usuarioId}`
+      );
+
+      // A API pode devolver a lista diretamente ou dentro de "value".
+      const resultado = response.data;
+      if (Array.isArray(resultado)) return resultado;
+      if (Array.isArray(resultado?.value)) return resultado.value;
+      if (Array.isArray(resultado?.coleiras)) return resultado.coleiras;
+
+      return [];
+    },
   });
 
-  const { data: coleiras = [] } = useQuery({
-    queryKey: ['coleiras'],
-    queryFn: () => base44.entities.Coleira.list(),
-  });
+  const bubalinos = useMemo(() => {
+    return coleiras
+      .filter((coleira) => coleira.ativo !== false)
+      .filter((coleira) => coleira.bubalino)
+      .map((coleira) => {
+        const animal = coleira.bubalino;
+        const dadoAtual = obterDadosAtuais(animal);
+        const estadoEstresse = obterEstadoEstresse(animal);
 
-  const createMutation = useMutation({
-    mutationFn: (data) => base44.entities.Bubalino.create(data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['bubalinos'] }); setModalOpen(false); toast.success('Bubalino cadastrado!'); },
-  });
+        return {
+          id: animal._id,
+          nome: animal.nome || animal.n_etiqueta || 'Bubalino sem nome',
+          raca: animal.raca,
+          numero_etiqueta: animal.n_etiqueta,
+          dt_nasc: animal.dt_nasc,
+          idade: calcularIdade(animal.dt_nasc),
+          sexo: animal.sexo,
+          coleira_id: coleira._id,
+          coleira_nome: coleira.n_coleira,
+          coleira_localizacao: coleira.coleira_localizacao,
+          status: normalizarStatus(estadoEstresse),
+          estado_estresse: estadoEstresse,
+          temperatura: dadoAtual?.temperatura ?? null,
+          batimentos: dadoAtual?.batimento_cardiaco ?? null,
+          data_leitura: dadoAtual?.data ?? null,
+          ativo: animal.ativo !== false,
+        };
+      })
+      .filter((animal) => animal.ativo);
+  }, [coleiras]);
 
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }) => base44.entities.Bubalino.update(id, data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['bubalinos'] }); setModalOpen(false); setEditing(null); toast.success('Bubalino atualizado!'); },
-  });
+  const filtered = bubalinos.filter((animal) => {
+    const termo = search.trim().toLowerCase();
 
-  const deleteMutation = useMutation({
-    mutationFn: (id) => base44.entities.Bubalino.delete(id),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ['bubalinos'] }); setDeleteTarget(null); toast.success('Bubalino excluído!'); },
-  });
+    const matchSearch =
+      !termo ||
+      animal.nome.toLowerCase().includes(termo) ||
+      String(animal.numero_etiqueta || '').toLowerCase().includes(termo) ||
+      String(animal.raca || '').toLowerCase().includes(termo) ||
+      String(animal.coleira_nome || '').toLowerCase().includes(termo);
 
-  const handleSave = (data) => {
-    if (data.coleira_id === 'none') data.coleira_id = '';
-    if (editing) {
-      updateMutation.mutate({ id: editing.id, data });
-    } else {
-      createMutation.mutate(data);
-    }
-  };
+    const matchStatus =
+      statusFilter === 'all' || animal.status === statusFilter;
 
-  const filtered = bubalinos.filter(b => {
-    const matchSearch = !search || b.nome?.toLowerCase().includes(search.toLowerCase()) || b.numero_etiqueta?.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === 'all' || b.status === statusFilter;
     return matchSearch && matchStatus;
   });
 
-  const getColeiraNome = (id) => coleiras.find(c => c.id === id)?.numero_etiqueta || '—';
+  if (!usuarioId) {
+    return (
+      <div className="mx-auto max-w-7xl">
+        <h1 className="text-2xl font-bold">Bubalinos</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Não foi possível identificar o usuário autenticado. Saia da conta
+          e entre novamente.
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="mx-auto max-w-7xl space-y-6">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Bubalinos</h1>
-          <p className="text-muted-foreground mt-1">Gerencie o cadastro do rebanho</p>
+          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+            Bubalinos
+          </h1>
+          <p className="mt-1 text-muted-foreground">
+            Animais cadastrados e monitorados pela API Bubatag
+          </p>
         </div>
-        <Button onClick={() => { setEditing(null); setModalOpen(true); }} className="bg-primary hover:bg-[#06D001]">
-          <Plus className="w-4 h-4 mr-2" /> Cadastrar Bubalino
+
+        <Button
+          variant="outline"
+          onClick={() => refetch()}
+          disabled={isFetching}
+        >
+          <RefreshCw
+            className={`mr-2 h-4 w-4 ${isFetching ? 'animate-spin' : ''}`}
+          />
+          Atualizar dados
         </Button>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Buscar por nome ou etiqueta..." value={search} onChange={e => setSearch(e.target.value)} className="pl-9 bg-card border-border" />
+      <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="relative w-full max-w-sm">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Buscar por etiqueta, raça ou coleira..."
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            className="border-border bg-card pl-9"
+          />
         </div>
+
         <select
-          className="w-44 rounded-lg border border-border bg-card px-3 py-2 text-sm"
+          aria-label="Filtrar bubalinos por status"
+          className="w-full rounded-lg border border-border bg-card px-3 py-2 text-sm sm:w-48"
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
+          onChange={(event) => setStatusFilter(event.target.value)}
         >
-          <option value="all">Todos</option>
-          <option value="saudavel">Saudavel</option>
-          <option value="estressado">Estressado</option>
-          <option value="fora_do_pasto">Fora do pasto</option>
-          <option value="sem_conexao">Sem conexao</option>
+          <option value="all">Todos os status</option>
+          <option value="saudavel">Saudável</option>
+          <option value="estressado">Estressado / alerta</option>
+          <option value="sem_conexao">Sem leitura de estresse</option>
         </select>
       </div>
 
-      {/* Table */}
       {isLoading ? (
         <div className="space-y-3">
-          {[1,2,3,4,5].map(i => <Skeleton key={i} className="h-14 rounded-lg bg-card" />)}
+          {[1, 2, 3].map((item) => (
+            <Skeleton
+              key={item}
+              className="h-16 rounded-lg bg-card"
+            />
+          ))}
+        </div>
+      ) : isError ? (
+        <div className="rounded-xl border border-destructive/30 bg-card p-6">
+          <h2 className="font-semibold">Não foi possível carregar os bubalinos</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {error?.response?.data?.mensagem ||
+              error?.message ||
+              'Verifique se a API está ligada e se o login continua válido.'}
+          </p>
+          <Button className="mt-4" onClick={() => refetch()}>
+            Tentar novamente
+          </Button>
         </div>
       ) : filtered.length === 0 ? (
-        <EmptyState icon={Bug} title="Nenhum bubalino encontrado" description="Cadastre seu primeiro bubalino para começar o monitoramento." actionLabel="Cadastrar Bubalino" onAction={() => { setEditing(null); setModalOpen(true); }} />
+        <EmptyState
+          icon={Bug}
+          title="Nenhum bubalino encontrado"
+          description={
+            bubalinos.length === 0
+              ? 'Não há bubalinos ativos associados às coleiras deste usuário.'
+              : 'Nenhum animal corresponde à busca ou ao filtro selecionado.'
+          }
+        />
       ) : (
-        <div className="bg-card rounded-xl border border-border overflow-hidden">
+        <div className="overflow-hidden rounded-xl border border-border bg-card">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
-                  <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Nome</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3 hidden sm:table-cell">Raça</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Tag</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3 hidden md:table-cell">Idade</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3 hidden md:table-cell">Sexo</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3 hidden lg:table-cell">Coleira</th>
-                  <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Status</th>
-                  <th className="text-right text-xs font-medium text-muted-foreground uppercase tracking-wider px-4 py-3">Ações</th>
+                  {[
+                    'Etiqueta',
+                    'Raça',
+                    'Idade',
+                    'Sexo',
+                    'Coleira',
+                    'Temperatura',
+                    'Batimentos',
+                    'Estresse',
+                  ].map((titulo) => (
+                    <th
+                      key={titulo}
+                      className="whitespace-nowrap px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground"
+                    >
+                      {titulo}
+                    </th>
+                  ))}
                 </tr>
               </thead>
+
               <tbody>
-                {filtered.map((b) => (
-                  <tr key={b.id} className="border-b border-border/50 hover:bg-muted/20 transition-colors">
-                    <td className="px-4 py-3 font-medium text-sm">{b.nome}</td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground hidden sm:table-cell">{b.raca || '—'}</td>
-                    <td className="px-4 py-3 text-sm font-mono text-muted-foreground">{b.numero_etiqueta}</td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">{b.idade ? `${b.idade} anos` : '—'}</td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground hidden md:table-cell">{b.sexo || '—'}</td>
-                    <td className="px-4 py-3 text-sm text-muted-foreground hidden lg:table-cell">{getColeiraNome(b.coleira_id)}</td>
-                    <td className="px-4 py-3"><StatusBadge status={b.status || 'sem_conexao'} /></td>
-                    <td className="px-4 py-3 text-right">
-                      <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => { setEditing(b); setModalOpen(true); }}>
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => setDeleteTarget(b)}>
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                {filtered.map((animal) => (
+                  <tr
+                    key={animal.id}
+                    className="border-b border-border/50 transition-colors hover:bg-muted/20"
+                  >
+                    <td className="px-4 py-3">
+                      <div className="text-sm font-semibold">
+                        {animal.numero_etiqueta || '—'}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {animal.nome}
+                      </div>
+                    </td>
+
+                    <td className="px-4 py-3 text-sm text-muted-foreground">
+                      {animal.raca || '—'}
+                    </td>
+
+                    <td className="whitespace-nowrap px-4 py-3 text-sm text-muted-foreground">
+                      {animal.idade}
+                    </td>
+
+                    <td className="px-4 py-3 text-sm text-muted-foreground">
+                      {formatarSexo(animal.sexo)}
+                    </td>
+
+                    <td className="px-4 py-3 text-sm text-muted-foreground">
+                      <div>{animal.coleira_nome || '—'}</div>
+                      <div className="text-xs">
+                        {animal.coleira_localizacao || ''}
+                      </div>
+                    </td>
+
+                    <td className="whitespace-nowrap px-4 py-3 text-sm">
+                      <span className="inline-flex items-center gap-1">
+                        <Thermometer className="h-4 w-4 text-amber-400" />
+                        {animal.temperatura == null
+                          ? '—'
+                          : `${animal.temperatura} °C`}
+                      </span>
+                    </td>
+
+                    <td className="whitespace-nowrap px-4 py-3 text-sm">
+                      <span className="inline-flex items-center gap-1">
+                        <HeartPulse className="h-4 w-4 text-rose-400" />
+                        {animal.batimentos == null
+                          ? '—'
+                          : `${animal.batimentos} bpm`}
+                      </span>
+                    </td>
+
+                    <td className="px-4 py-3">
+                      <div className="space-y-1">
+                        <StatusBadge status={animal.status} />
+                        <div className="text-xs text-muted-foreground">
+                          {animal.estado_estresse}
+                        </div>
                       </div>
                     </td>
                   </tr>
@@ -140,29 +340,13 @@ export default function Bubalinos() {
               </tbody>
             </table>
           </div>
+
+          <div className="border-t border-border px-4 py-3 text-xs text-muted-foreground">
+            Exibindo {filtered.length} de {bubalinos.length} bubalino(s).
+            {isFetching ? ' Atualizando dados...' : ''}
+          </div>
         </div>
       )}
-
-      {/* Modal */}
-      <BubalinoModal
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-        bubalino={editing}
-        coleiras={coleiras}
-        onSave={handleSave}
-        saving={createMutation.isPending || updateMutation.isPending}
-      />
-
-      {/* Delete Confirm */}
-      <ConfirmDialog
-        open={!!deleteTarget}
-        onOpenChange={() => setDeleteTarget(null)}
-        title="Excluir Bubalino"
-        description={`Tem certeza que deseja excluir "${deleteTarget?.nome}"? Esta ação não pode ser desfeita.`}
-        onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
-        confirmLabel="Excluir"
-        destructive
-      />
     </div>
   );
 }
