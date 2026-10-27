@@ -19,6 +19,7 @@ import Coleiras from "./pages/Coleiras";
 import Localizacao from "./pages/Localizacao";
 import Perfil from "./pages/Perfil";
 import Login from "./pages/Login";
+import Cadastro from "./pages/Cadastro";
 
 function AuthenticatedApp() {
   const { user, isLoadingAuth } = useAuth();
@@ -32,17 +33,19 @@ function AuthenticatedApp() {
               B
             </span>
           </div>
+
           <div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin" />
         </div>
       </div>
     );
   }
 
-  // Sem usuário autenticado: permite somente a tela de login.
+  // Sem usuário autenticado: permite login e cadastro.
   if (!user) {
     return (
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/cadastro" element={<Cadastro />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     );
@@ -64,6 +67,12 @@ function AuthenticatedApp() {
         path="/login"
         element={<Navigate to="/" replace />}
       />
+
+      <Route
+        path="/cadastro"
+        element={<Navigate to="/" replace />}
+      />
+
       <Route path="*" element={<PageNotFound />} />
     </Routes>
   );
@@ -76,6 +85,7 @@ function App() {
         <Router>
           <AuthenticatedApp />
         </Router>
+
         <Toaster />
       </QueryClientProvider>
     </AuthProvider>
