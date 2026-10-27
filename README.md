@@ -3,7 +3,7 @@
 ## Como rodar o projeto
 
 1) Instale o Node.js (versao LTS).
-2) Abra um terminal na pasta do front-end:
+2) Abra um terminal na pasta do sistema-frontend:
 
 ```bash
 cd sistema-front
