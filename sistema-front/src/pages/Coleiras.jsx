@@ -1,7 +1,14 @@
 
 import React, { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { Radio, Search, RefreshCw, Plus, Pencil, Trash2 } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  Radio,
+  Search,
+  RefreshCw,
+  Plus,
+  Pencil,
+  Trash2,
+} from 'lucide-react';
 
 import { api } from '@/services/api';
 import { useAuth } from '@/lib/AuthContext';
@@ -9,10 +16,16 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import StatusBadge from '@/components/shared/StatusBadge';
 import { Skeleton } from '@/components/ui/skeleton';
+import ColeiraModal from '@/components/coleiras/ColeiraModal';
 
 export default function Coleiras() {
   const [search, setSearch] = useState('');
+  const [modalOpen, setModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
+
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   const usuario = useMemo(() => {
     try {
@@ -40,11 +53,10 @@ export default function Coleiras() {
       );
 
       const dados = response.data;
-      const lista = Array.isArray(dados)
+
+      return Array.isArray(dados)
         ? dados
         : dados.coleiras || dados.data || [];
-
-      return lista;
     },
   });
 
@@ -55,11 +67,55 @@ export default function Coleiras() {
       !termo ||
       String(c.n_coleira || '').toLowerCase().includes(termo) ||
       String(c.IP || '').toLowerCase().includes(termo) ||
-      String(c.coleira_localizacao || '').toLowerCase().includes(termo) ||
-      String(c.bubalino?.n_etiqueta || '').toLowerCase().includes(termo) ||
-      String(c.bubalino?.raca || '').toLowerCase().includes(termo)
+      String(c.coleira_localizacao || '')
+        .toLowerCase()
+        .includes(termo) ||
+      String(c.bubalino?.n_etiqueta || '')
+        .toLowerCase()
+        .includes(termo) ||
+      String(c.bubalino?.raca || '')
+        .toLowerCase()
+        .includes(termo)
     );
   });
+
+  const handleSave = async (form) => {
+    if (!usuarioId) {
+      setSaveError('Não foi possível identificar o usuário.');
+      return;
+    }
+
+    if (!form.numero_etiqueta.trim()) {
+      setSaveError('Informe a identificação da coleira.');
+      return;
+    }
+
+    setSaving(true);
+    setSaveError('');
+
+    try {
+      await api.post(`/api/coleiras/usuario/${usuarioId}`, {
+        n_coleira: form.numero_etiqueta.trim(),
+        coleira_localizacao: form.localizacao.trim(),
+        IP: form.endereco_ip.trim(),
+        ativo: form.status === 'ativa',
+      });
+
+      await queryClient.invalidateQueries({
+        queryKey: ['coleiras', usuarioId],
+      });
+
+      setModalOpen(false);
+    } catch (error) {
+      setSaveError(
+        error?.response?.data?.mensagem ||
+          error?.response?.data?.message ||
+          'Não foi possível cadastrar a coleira.'
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="mx-auto max-w-7xl space-y-6">
@@ -68,15 +124,18 @@ export default function Coleiras() {
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
             Coleiras
           </h1>
+
           <p className="mt-1 text-muted-foreground">
             Gerencie as coleiras IoT do rebanho
           </p>
         </div>
 
         <Button
-          disabled
-          title="O cadastro precisa ser implementado na API"
           className="bg-primary"
+          onClick={() => {
+            setSaveError('');
+            setModalOpen(true);
+          }}
         >
           <Plus className="mr-2 h-4 w-4" />
           Cadastrar Coleira
@@ -86,6 +145,7 @@ export default function Coleiras() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative max-w-sm flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+
           <Input
             placeholder="Buscar por coleira, IP ou bubalino..."
             value={search}
@@ -100,16 +160,30 @@ export default function Coleiras() {
           disabled={isFetching}
         >
           <RefreshCw
-            className={`mr-2 h-4 w-4 ${isFetching ? 'animate-spin' : ''}`}
+            className={`mr-2 h-4 w-4 ${
+              isFetching ? 'animate-spin' : ''
+            }`}
           />
           Atualizar dados
         </Button>
       </div>
 
+      {saveError && (
+        <div
+          role="alert"
+          className="rounded-lg border border-destructive/30 bg-card p-3 text-sm text-destructive"
+        >
+          {saveError}
+        </div>
+      )}
+
       {isLoading ? (
         <div className="space-y-3">
           {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-14 rounded-lg bg-card" />
+            <Skeleton
+              key={i}
+              className="h-14 rounded-lg bg-card"
+            />
           ))}
         </div>
       ) : isError ? (
@@ -117,11 +191,13 @@ export default function Coleiras() {
           <p className="font-medium text-destructive">
             Não foi possível carregar as coleiras.
           </p>
+
           <p className="mt-2 text-sm text-muted-foreground">
             {error?.response?.data?.mensagem ||
               error?.message ||
               'Verifique a API e sua autenticação.'}
           </p>
+
           <Button
             className="mt-4"
             variant="outline"
@@ -137,7 +213,11 @@ export default function Coleiras() {
       ) : filtered.length === 0 ? (
         <div className="rounded-xl border border-border bg-card p-10 text-center">
           <Radio className="mx-auto mb-3 h-8 w-8 text-muted-foreground" />
-          <p className="font-medium">Nenhuma coleira encontrada</p>
+
+          <p className="font-medium">
+            Nenhuma coleira encontrada
+          </p>
+
           <p className="mt-1 text-sm text-muted-foreground">
             {coleiras.length === 0
               ? 'A API não retornou coleiras para este usuário.'
@@ -150,16 +230,21 @@ export default function Coleiras() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-border bg-muted/30">
-                  {['Tag', 'Localização', 'IP', 'Bubalino', 'Status'].map(
-                    (titulo) => (
-                      <th
-                        key={titulo}
-                        className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground"
-                      >
-                        {titulo}
-                      </th>
-                    )
-                  )}
+                  {[
+                    'Tag',
+                    'Localização',
+                    'IP',
+                    'Bubalino',
+                    'Status',
+                  ].map((titulo) => (
+                    <th
+                      key={titulo}
+                      className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-muted-foreground"
+                    >
+                      {titulo}
+                    </th>
+                  ))}
+
                   <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-muted-foreground">
                     Ações
                   </th>
@@ -185,7 +270,10 @@ export default function Coleiras() {
                     </td>
 
                     <td className="px-4 py-3 text-sm">
-                      <div>{c.bubalino?.n_etiqueta || '—'}</div>
+                      <div>
+                        {c.bubalino?.n_etiqueta || '—'}
+                      </div>
+
                       {c.bubalino?.raca && (
                         <div className="text-xs text-muted-foreground">
                           {c.bubalino.raca}
@@ -233,6 +321,14 @@ export default function Coleiras() {
           </div>
         </div>
       )}
+
+      <ColeiraModal
+        open={modalOpen}
+        onOpenChange={setModalOpen}
+        coleira={null}
+        onSave={handleSave}
+        saving={saving}
+      />
     </div>
   );
 }
