@@ -1,8 +1,13 @@
-
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
+
 import { useAuth } from '@/lib/AuthContext';
-import { Eye, EyeOff, LockKeyhole } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import AuthShell from '@/components/auth/AuthShell';
+import Campo from '@/components/auth/Campo';
 
 export default function Login() {
   const { login } = useAuth();
@@ -25,7 +30,7 @@ export default function Login() {
     } catch (error) {
       setErro(
         error.response?.data?.mensagem ||
-        'Não foi possível entrar. Confira seu e-mail e senha.'
+          'Não foi possível entrar. Confira seu e-mail e senha.'
       );
     } finally {
       setCarregando(false);
@@ -33,76 +38,64 @@ export default function Login() {
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
-      <section className="w-full max-w-md rounded-2xl border bg-card p-8 shadow-sm">
-        <div className="mb-6 flex flex-col items-center text-center">
-          <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <LockKeyhole size={28} />
+    <AuthShell
+      title="Bem-vindo de volta"
+      description="Entre para acompanhar o rebanho."
+      footer={
+        <>
+          Ainda não tem conta?{' '}
+          <Link to="/cadastro" className="font-bold text-primary hover:underline">
+            Criar conta
+          </Link>
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <Campo
+          id="email"
+          label="E-mail"
+          type="email"
+          autoComplete="username"
+          required
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          placeholder="seu@email.com"
+        />
+
+        <div className="space-y-2">
+          <Label htmlFor="senha">Senha</Label>
+          <div className="relative">
+            <Input
+              id="senha"
+              type={mostrarSenha ? 'text' : 'password'}
+              autoComplete="current-password"
+              required
+              value={senha}
+              onChange={(event) => setSenha(event.target.value)}
+              placeholder="Digite sua senha"
+              className="pr-12"
+            />
+            <button
+              type="button"
+              onClick={() => setMostrarSenha((valor) => !valor)}
+              aria-label={mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'}
+              className="absolute right-1 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {mostrarSenha ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
           </div>
-          <h1 className="text-2xl font-bold">Bubatag</h1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Entre para acessar o monitoramento do rebanho.
-          </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div className="space-y-2">
-            <label htmlFor="email" className="text-sm font-medium">
-              E-mail
-            </label>
-            <input
-              id="email"
-              type="email"
-              autoComplete="username"
-              required
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="seu@email.com"
-              className="w-full rounded-lg border bg-background px-3 py-2.5 outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
+        {erro && (
+          <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+            {erro}
+          </p>
+        )}
 
-          <div className="space-y-2">
-            <label htmlFor="senha" className="text-sm font-medium">
-              Senha
-            </label>
-            <div className="flex items-center rounded-lg border bg-background focus-within:ring-2 focus-within:ring-primary">
-              <input
-                id="senha"
-                type={mostrarSenha ? 'text' : 'password'}
-                autoComplete="current-password"
-                required
-                value={senha}
-                onChange={(event) => setSenha(event.target.value)}
-                placeholder="Digite sua senha"
-                className="min-w-0 flex-1 bg-transparent px-3 py-2.5 outline-none"
-              />
-              <button
-                type="button"
-                onClick={() => setMostrarSenha(!mostrarSenha)}
-                aria-label={mostrarSenha ? 'Ocultar senha' : 'Mostrar senha'}
-                className="px-3 text-muted-foreground"
-              >
-                {mostrarSenha ? <EyeOff size={19} /> : <Eye size={19} />}
-              </button>
-            </div>
-          </div>
-
-          {erro && (
-            <p role="alert" className="rounded-lg bg-destructive/10 p-3 text-sm text-destructive">
-              {erro}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={carregando}
-            className="w-full rounded-lg bg-primary px-4 py-3 font-semibold text-primary-foreground disabled:opacity-60"
-          >
-            {carregando ? 'Entrando...' : 'Entrar'}
-          </button>
-        </form>
-      </section>
-    </main>
+        <Button type="submit" size="lg" disabled={carregando} className="w-full">
+          {carregando ? 'Entrando...' : 'Entrar'}
+        </Button>
+      </form>
+    </AuthShell>
   );
 }
