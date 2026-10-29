@@ -1,25 +1,19 @@
-import React from 'react';
-
-const labels = {
-  saudavel: 'Saudavel',
-  estressado: 'Estressado',
-  fora_do_pasto: 'Fora do pasto',
-  sem_conexao: 'Sem conexao',
-  ativa: 'Ativa',
-  inativa: 'Inativa',
-};
-
-const colors = {
-  saudavel: 'bg-[#06D001]/10 text-[#06D001] border-[#06D001]/30',
-  estressado: 'bg-[#E63946]/10 text-[#E63946] border-[#E63946]/30',
-  fora_do_pasto: 'bg-[#FFB703]/10 text-[#FFB703] border-[#FFB703]/30',
-  sem_conexao: 'bg-muted text-muted-foreground border-border',
-  ativa: 'bg-[#06D001]/10 text-[#06D001] border-[#06D001]/30',
-  inativa: 'bg-muted text-muted-foreground border-border',
-};
+import { STATUS } from '@/lib/rebanho';
 
 export default function StatusBadge({ status }) {
-  const label = labels[status] || 'Desconhecido';
-  const color = colors[status] || 'bg-muted text-muted-foreground border-border';
-  return <span className={`inline-flex items-center px-2.5 py-1 text-xs border rounded-full ${color}`}>{label}</span>;
+  const config = STATUS[status] || { label: 'Desconhecido', color: '#6B7A84' };
+
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-bold"
+      style={{
+        color: config.color,
+        backgroundColor: `${config.color}1A`,
+        borderColor: `${config.color}4D`,
+      }}
+    >
+      <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: config.color }} />
+      {config.label}
+    </span>
+  );
 }

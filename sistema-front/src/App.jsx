@@ -1,5 +1,4 @@
-
-import { Toaster } from "@/components/ui/toaster";
+import { Toaster } from "@/components/ui/sonner";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClientInstance } from "@/lib/query-client";
 import {
@@ -12,6 +11,7 @@ import {
 import { AuthProvider, useAuth } from "@/lib/AuthContext";
 import PageNotFound from "./lib/PageNotFound";
 import AppLayout from "./components/layout/AppLayout";
+import Logo from "./components/brand/Logo";
 import HomePage from "./pages/HomePage";
 import Dashboard from "./pages/Dashboard";
 import Bubalinos from "./pages/Bubalinos";
@@ -26,15 +26,10 @@ function AuthenticatedApp() {
 
   if (isLoadingAuth) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center bg-background">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
-            <span className="text-lg font-bold text-primary animate-pulse">
-              B
-            </span>
-          </div>
-
-          <div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin" />
+      <div className="fixed inset-0 flex flex-col items-center justify-center gap-6 bg-background">
+        <Logo size={64} showText={false} className="animate-pulse" />
+        <div className="h-1 w-40 overflow-hidden rounded-full bg-muted">
+          <div className="h-full w-1/2 animate-pulse rounded-full bg-brand-gradient" />
         </div>
       </div>
     );
@@ -61,19 +56,11 @@ function AuthenticatedApp() {
         <Route path="/coleiras" element={<Coleiras />} />
         <Route path="/localizacao" element={<Localizacao />} />
         <Route path="/perfil" element={<Perfil />} />
+        <Route path="*" element={<PageNotFound />} />
       </Route>
 
-      <Route
-        path="/login"
-        element={<Navigate to="/" replace />}
-      />
-
-      <Route
-        path="/cadastro"
-        element={<Navigate to="/" replace />}
-      />
-
-      <Route path="*" element={<PageNotFound />} />
+      <Route path="/login" element={<Navigate to="/" replace />} />
+      <Route path="/cadastro" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

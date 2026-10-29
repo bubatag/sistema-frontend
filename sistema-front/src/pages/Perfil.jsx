@@ -1,54 +1,44 @@
+import { useState } from 'react';
+import { User, Mail, Shield, Building2, Phone, Pencil, Save, X, BadgeCheck } from 'lucide-react';
+import { toast } from 'sonner';
 
-import React, { useState } from 'react';
-import { useAuth } from '@/lib/AuthContext';
+import { useUsuario } from '@/hooks/useUsuario';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  User,
-  Mail,
-  Shield,
-  Building2,
-  FileText,
-  Pencil,
-  Save,
-  X,
-} from 'lucide-react';
-import { toast } from 'sonner';
+import PageHeader from '@/components/shared/PageHeader';
+import ErrorState from '@/components/shared/ErrorState';
+
+function Campo({ icon: Icon, label, children }) {
+  return (
+    <div className="space-y-2">
+      <Label className="flex items-center gap-2 text-muted-foreground">
+        <Icon className="h-4 w-4" />
+        {label}
+      </Label>
+      {children}
+    </div>
+  );
+}
 
 export default function Perfil() {
-  const { user } = useAuth();
-
-  const usuario = (() => {
-    try {
-      return user || JSON.parse(localStorage.getItem('usuario') || 'null');
-    } catch {
-      return null;
-    }
-  })();
+  const { usuario } = useUsuario();
 
   const [editando, setEditando] = useState(false);
   const [telefone, setTelefone] = useState(usuario?.telefone || '');
   const [fazenda, setFazenda] = useState(usuario?.fazenda || '');
-  const [saving, setSaving] = useState(false);
+  const [salvando, setSalvando] = useState(false);
 
   if (!usuario) {
     return (
-      <div className="mx-auto max-w-2xl rounded-xl border border-border bg-card p-6">
-        Não foi possível carregar o perfil. Entre novamente no sistema.
-      </div>
+      <ErrorState title="Não foi possível carregar o perfil" message="Saia da conta e entre novamente." />
     );
   }
 
   const nome = usuario.nome || 'Usuário';
   const email = usuario.email || '';
   const ccir = usuario.CCIR || usuario.ccir || '';
+  const contaAtiva = usuario.ativo !== false;
 
   const cancelarEdicao = () => {
     setTelefone(usuario.telefone || '');
@@ -57,176 +47,119 @@ export default function Perfil() {
   };
 
   const salvarPerfil = async () => {
-    setSaving(true);
+    setSalvando(true);
 
     try {
-      // A API atual ainda não possui uma rota de atualização confirmada
-      // para telefone e fazenda. Não simular um salvamento no servidor.
-      toast.error(
-        'A edição está disponível na tela, mas a API ainda precisa de uma rota para salvar esses campos.'
-      );
+      // A API ainda não possui rota de atualização para telefone e fazenda.
+      // Não simulamos um salvamento no servidor.
+      toast.error('Ainda não é possível salvar: a API precisa de uma rota de atualização do perfil.');
     } finally {
-      setSaving(false);
+      setSalvando(false);
     }
   };
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
-          Perfil
-        </h1>
-        <p className="mt-1 text-muted-foreground">
-          Gerencie suas informações pessoais
-        </p>
-      </div>
+    <div className="mx-auto max-w-3xl space-y-6">
+      <PageHeader title="Perfil" description="Suas informações pessoais e da propriedade." />
 
-      <Card className="border-border bg-card">
-        <CardHeader className="border-b border-border">
-          <div className="flex flex-wrap items-center justify-between gap-4">
+      <section className="surface overflow-hidden">
+        <div className="relative border-b border-border p-6">
+          <div
+            className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full opacity-20 blur-3xl"
+            style={{ background: 'radial-gradient(circle, #05D900 0%, transparent 65%)' }}
+            aria-hidden="true"
+          />
+
+          <div className="relative flex flex-wrap items-center justify-between gap-4">
             <div className="flex items-center gap-4">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/20">
-                <span className="text-2xl font-bold text-primary">
-                  {nome.charAt(0).toUpperCase()}
-                </span>
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-brand-gradient font-display text-3xl font-semibold text-white shadow-glow">
+                {nome.charAt(0).toUpperCase()}
               </div>
 
-              <div>
-                <CardTitle className="text-xl">{nome}</CardTitle>
-                <p className="text-sm text-muted-foreground">{email}</p>
+              <div className="min-w-0">
+                <h2 className="truncate text-2xl font-semibold">{nome}</h2>
+                <p className="truncate text-sm text-muted-foreground">{email}</p>
+                <span
+                  className={`mt-1.5 inline-flex items-center gap-1.5 text-xs font-bold ${
+                    contaAtiva ? 'text-primary' : 'text-muted-foreground'
+                  }`}
+                >
+                  <BadgeCheck className="h-4 w-4" />
+                  Conta {contaAtiva ? 'ativa' : 'inativa'}
+                </span>
               </div>
             </div>
 
             {!editando ? (
-              <Button
-                variant="outline"
-                onClick={() => setEditando(true)}
-              >
-                <Pencil className="mr-2 h-4 w-4" />
+              <Button variant="outline" onClick={() => setEditando(true)}>
+                <Pencil />
                 Editar perfil
               </Button>
             ) : (
-              <Button
-                variant="outline"
-                onClick={cancelarEdicao}
-              >
-                <X className="mr-2 h-4 w-4" />
+              <Button variant="ghost" onClick={cancelarEdicao}>
+                <X />
                 Cancelar
               </Button>
             )}
           </div>
-        </CardHeader>
+        </div>
 
-        <CardContent className="space-y-5 p-6">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2 text-muted-foreground">
-                <User className="h-4 w-4" />
-                Nome
-              </Label>
-              <Input
-                value={nome}
-                disabled
-                className="border-border bg-muted opacity-80"
-              />
-            </div>
+        <div className="space-y-6 p-6">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+            <Campo icon={User} label="Nome">
+              <Input value={nome} disabled readOnly />
+            </Campo>
 
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2 text-muted-foreground">
-                <Mail className="h-4 w-4" />
-                E-mail
-              </Label>
-              <Input
-                value={email}
-                disabled
-                className="border-border bg-muted opacity-80"
-              />
-            </div>
+            <Campo icon={Mail} label="E-mail">
+              <Input value={email} disabled readOnly />
+            </Campo>
 
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2 text-muted-foreground">
-                <Shield className="h-4 w-4" />
-                Identificador CCIR
-              </Label>
-              <Input
-                value={ccir}
-                disabled
-                placeholder="Não informado"
-                className="border-border bg-muted opacity-80"
-              />
-            </div>
+            <Campo icon={Shield} label="CCIR">
+              <Input value={ccir} disabled readOnly placeholder="Não informado" />
+            </Campo>
 
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2 text-muted-foreground">
-                <User className="h-4 w-4" />
-                Telefone
-              </Label>
+            <Campo icon={Phone} label="Telefone">
               <Input
                 value={telefone}
                 onChange={(e) => setTelefone(e.target.value)}
                 disabled={!editando}
-                placeholder="(XX) XXXXX-XXXX"
-                className="border-border bg-muted"
+                placeholder="(00) 00000-0000"
+                inputMode="tel"
               />
-            </div>
+            </Campo>
 
-            <div className="col-span-full space-y-2">
-              <Label className="flex items-center gap-2 text-muted-foreground">
-                <Building2 className="h-4 w-4" />
-                Nome da fazenda
-              </Label>
-              <Input
-                value={fazenda}
-                onChange={(e) => setFazenda(e.target.value)}
-                disabled={!editando}
-                placeholder="Ex.: Fazenda Boa Vista"
-                className="border-border bg-muted"
-              />
-            </div>
-
-            <div className="col-span-full space-y-2">
-              <Label className="flex items-center gap-2 text-muted-foreground">
-                <FileText className="h-4 w-4" />
-                Situação da conta
-              </Label>
-              <Input
-                value={usuario.ativo === false ? 'Inativa' : 'Ativa'}
-                disabled
-                className="border-border bg-muted opacity-80"
-              />
+            <div className="sm:col-span-2">
+              <Campo icon={Building2} label="Nome da fazenda">
+                <Input
+                  value={fazenda}
+                  onChange={(e) => setFazenda(e.target.value)}
+                  disabled={!editando}
+                  placeholder="Ex.: Fazenda Boa Vista"
+                />
+              </Campo>
             </div>
           </div>
 
           {editando && (
-            <>
-              <p className="text-sm text-muted-foreground">
-                Você pode alterar os campos nesta tela. Para persistir as
-                alterações, precisamos implementar a rota de atualização
-                correspondente na API.
+            <div className="space-y-4 border-t border-border pt-5">
+              <p className="rounded-lg border border-warning/30 bg-warning/10 p-3 text-sm text-warning">
+                Você pode editar os campos nesta tela, mas para salvar é preciso criar a rota de
+                atualização correspondente na API.
               </p>
 
-              <div className="flex justify-end gap-2 pt-2">
-                <Button
-                  variant="outline"
-                  onClick={cancelarEdicao}
-                  disabled={saving}
-                >
+              <div className="flex justify-end gap-2">
+                <Button variant="ghost" onClick={cancelarEdicao} disabled={salvando}>
                   Cancelar
                 </Button>
-
-                <Button
-                  onClick={salvarPerfil}
-                  disabled={saving}
-                  className="bg-primary hover:bg-[#06D001]"
-                >
-                  <Save className="mr-2 h-4 w-4" />
-                  {saving ? 'Salvando...' : 'Salvar alterações'}
+                <Button onClick={salvarPerfil} disabled={salvando}>
+                  <Save />
+                  {salvando ? 'Salvando...' : 'Salvar alterações'}
                 </Button>
               </div>
-            </>
+            </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </section>
     </div>
   );
 }

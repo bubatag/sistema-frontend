@@ -1,95 +1,75 @@
+import { STATUS } from '@/lib/rebanho';
 
-import React from 'react';
-
-const statusConfig = {
-  saudavel: {
-    label: 'Saudáveis',
-    color: '#06D001',
-  },
-  estressado: {
-    label: 'Estressados',
-    color: '#E63946',
-  },
-  fora_do_pasto: {
-    label: 'Fora do pasto',
-    color: '#FFB703',
-  },
-  sem_conexao: {
-    label: 'Sem conexão',
-    color: '#666666',
-  },
-  sem_classificacao: {
-    label: 'Sem classificação',
-    color: '#8B5CF6',
-  },
-};
+const ordemStatus = ['saudavel', 'estressado', 'sem_classificacao', 'sem_conexao'];
 
 function polarToCartesian(cx, cy, radius, angle) {
   const radians = ((angle - 90) * Math.PI) / 180;
-
-  return {
-    x: cx + radius * Math.cos(radians),
-    y: cy + radius * Math.sin(radians),
-  };
+  return { x: cx + radius * Math.cos(radians), y: cy + radius * Math.sin(radians) };
 }
 
 function describeArc(cx, cy, radius, startAngle, endAngle) {
   const start = polarToCartesian(cx, cy, radius, endAngle);
   const end = polarToCartesian(cx, cy, radius, startAngle);
   const largeArcFlag = endAngle - startAngle <= 180 ? '0' : '1';
-
-  return [
-    'M', start.x, start.y,
-    'A', radius, radius, 0, largeArcFlag, 0, end.x, end.y,
-  ].join(' ');
+  return ['M', start.x, start.y, 'A', radius, radius, 0, largeArcFlag, 0, end.x, end.y].join(' ');
 }
 
-function statusData(bubalinos) {
-  return Object.entries(statusConfig)
-    .map(([status, config]) => ({
+function dadosPorStatus(bubalinos) {
+  return ordemStatus
+    .map((status) => ({
       status,
-      ...config,
+      ...STATUS[status],
       count: bubalinos.filter((b) => b.status === status).length,
     }))
     .filter((item) => item.count > 0);
 }
 
+function Painel({ titulo, descricao, children, className = '' }) {
+  return (
+    <section className={`surface p-5 md:p-6 ${className}`}>
+      <div className="mb-5">
+        <h2 className="text-lg font-semibold">{titulo}</h2>
+        <p className="text-sm text-muted-foreground">{descricao}</p>
+      </div>
+      {children}
+    </section>
+  );
+}
+
 function DonutChart({ data, total }) {
-  let currentAngle = 0;
+  const fatias = data.reduce((lista, item) => {
+    const inicio = lista.length ? lista[lista.length - 1].fim : 0;
+    const angulo = total ? (item.count / total) * 360 : 0;
+    return [...lista, { ...item, inicio, fim: inicio + angulo }];
+  }, []);
 
   return (
     <div className="flex flex-col items-center gap-6 sm:flex-row">
-      <div className="relative h-48 w-48 shrink-0">
+      <div
+        className="relative h-48 w-48 shrink-0"
+        role="img"
+        aria-label={`Distribuição do rebanho: ${data.map((d) => `${d.count} ${d.label}`).join(', ') || 'sem dados'}`}
+      >
         <svg viewBox="0 0 220 220" className="h-full w-full">
-          <circle
-            cx="110"
-            cy="110"
-            r="78"
-            fill="none"
-            stroke="hsl(var(--muted))"
-            strokeWidth="24"
-          />
+          <circle cx="110" cy="110" r="78" fill="none" stroke="hsl(var(--muted))" strokeWidth="22" />
 
-          {data.map((item) => {
-            const angle = total ? (item.count / total) * 360 : 0;
-            const start = currentAngle;
-            const end = currentAngle + angle;
+          {fatias.map((item) => {
+            const { inicio, fim } = item;
 
-            currentAngle = end;
+            // Um único grupo ocupa o círculo inteiro: desenha um anel completo.
+            if (data.length === 1) {
+              return (
+                <circle key={item.status} cx="110" cy="110" r="78" fill="none" stroke={item.color} strokeWidth="22" />
+              );
+            }
 
             return (
               <path
                 key={item.status}
-                d={describeArc(
-                  110,
-                  110,
-                  78,
-                  start,
-                  Math.max(end - 2, start)
-                )}
+                d={describeArc(110, 110, 78, inicio, Math.max(fim - 3, inicio))}
                 fill="none"
                 stroke={item.color}
-                strokeWidth="24"
+                strokeWidth="22"
                 strokeLinecap="round"
               />
             );
@@ -97,40 +77,41 @@ function DonutChart({ data, total }) {
         </svg>
 
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-3xl font-bold">{total}</span>
-          <span className="text-xs text-muted-foreground">animais</span>
+          <span className="font-display text-4xl font-semibold">{total}</span>
+          <span className="text-xs text-muted-foreground">{total === 1 ? 'animal' : 'animais'}</span>
         </div>
       </div>
 
-      <div className="grid w-full gap-3">
+      <ul className="grid w-full gap-2.5">
         {data.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Nenhum animal para exibir.
-          </p>
+          <li className="text-sm text-muted-foreground">Nenhum animal para exibir.</li>
         ) : (
           data.map((item) => (
-            <div
+            <li
               key={item.status}
-              className="flex items-center justify-between rounded-lg border border-border px-3 py-2"
+              className="flex items-center justify-between rounded-lg border border-border bg-background/40 px-3 py-2.5"
             >
-              <div className="flex items-center gap-2">
-                <span
-                  className="h-2.5 w-2.5 rounded-full"
-                  style={{ backgroundColor: item.color }}
-                />
-
-                <span className="text-sm text-muted-foreground">
-                  {item.label}
-                </span>
-              </div>
-
-              <span className="text-sm font-semibold">
-                {item.count}
+              <span className="flex items-center gap-2.5">
+                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: item.color }} />
+                <span className="text-sm text-muted-foreground">{item.label}</span>
               </span>
-            </div>
+              <span className="font-display text-base font-semibold">{item.count}</span>
+            </li>
           ))
         )}
+      </ul>
+    </div>
+  );
+}
+
+function Medidor({ rotulo, valor, largura, cor, unidade }) {
+  return (
+    <div className="grid grid-cols-[88px_1fr_64px] items-center gap-3">
+      <span className="text-xs text-muted-foreground">{rotulo}</span>
+      <div className="h-2 overflow-hidden rounded-full bg-muted">
+        <div className="h-full rounded-full" style={{ width: `${largura}%`, backgroundColor: cor }} />
       </div>
+      <span className="text-right text-xs font-bold">{valor == null ? '—' : `${valor} ${unidade}`}</span>
     </div>
   );
 }
@@ -138,232 +119,110 @@ function DonutChart({ data, total }) {
 function StressRanking({ bubalinos }) {
   const data = bubalinos
     .filter((b) => b.status === 'estressado')
-    .sort((a, b) => {
-      const scoreA = (a.batimentos ?? 0) + (a.temperatura ?? 0);
-      const scoreB = (b.batimentos ?? 0) + (b.temperatura ?? 0);
-
-      return scoreB - scoreA;
-    });
+    .sort(
+      (a, b) =>
+        (b.batimentos ?? 0) + (b.temperatura ?? 0) - ((a.batimentos ?? 0) + (a.temperatura ?? 0))
+    );
 
   if (data.length === 0) {
     return (
-      <div className="flex h-48 flex-col items-center justify-center rounded-xl border border-border bg-background/40 text-center">
-        <div className="text-sm font-medium">
-          Nenhum animal classificado como estressado
-        </div>
-
-        <div className="mt-1 text-xs text-muted-foreground">
-          Consulte os sinais vitais e o histórico de estresse para acompanhar o rebanho.
+      <div className="flex h-48 flex-col items-center justify-center rounded-xl border border-dashed border-border text-center">
+        <div className="text-sm font-bold">Nenhum animal estressado</div>
+        <div className="mt-1 max-w-xs text-xs text-muted-foreground">
+          Quando uma coleira indicar estresse, os sinais vitais aparecerão aqui.
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
-      {data.map((bubalino, index) => {
-        const bpm = bubalino.batimentos;
-        const temp = bubalino.temperatura;
-
-        const bpmWidth =
-          bpm == null
-            ? 0
-            : Math.min((bpm / 150) * 100, 100);
-
-        const tempWidth =
-          temp == null
-            ? 0
-            : Math.min(
-                Math.max(((temp - 35) / 8) * 100, 0),
-                100
-              );
+    <ul className="space-y-3">
+      {data.map((animal, indice) => {
+        const larguraBpm = animal.batimentos == null ? 0 : Math.min((animal.batimentos / 150) * 100, 100);
+        const larguraTemp =
+          animal.temperatura == null ? 0 : Math.min(Math.max(((animal.temperatura - 35) / 8) * 100, 0), 100);
 
         return (
-          <div
-            key={bubalino.id}
-            className="rounded-xl border border-border bg-background/40 p-3"
-          >
+          <li key={animal.id} className="rounded-xl border border-border bg-background/40 p-4">
             <div className="mb-3 flex items-center gap-3">
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#E63946]/10 text-xs font-bold text-[#E63946]">
-                {index + 1}
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-danger/15 font-display text-sm font-semibold text-danger">
+                {indice + 1}
               </span>
-
-              <div>
-                <div className="text-sm font-semibold">
-                  {bubalino.nome}
-                </div>
-
+              <div className="min-w-0">
+                <div className="truncate text-sm font-bold">{animal.nome}</div>
                 <div className="text-xs text-muted-foreground">
-                  Etiqueta: {bubalino.numero_etiqueta || 'Não informada'}
-                </div>
-
-                <div className="text-xs text-muted-foreground">
-                  Estado registrado:{' '}
-                  {bubalino.estado_estresse || 'Sem leitura'}
+                  {animal.nome !== animal.numero_etiqueta ? `Etiqueta ${animal.numero_etiqueta} · ` : ''}
+                  {animal.estado_estresse}
                 </div>
               </div>
             </div>
 
-            <div className="grid gap-3">
-              <div className="grid grid-cols-[92px_1fr_56px] items-center gap-2">
-                <span className="text-xs text-muted-foreground">
-                  Batimentos
-                </span>
-
-                <div className="h-2 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-[#E63946]"
-                    style={{ width: `${bpmWidth}%` }}
-                  />
-                </div>
-
-                <span className="text-right text-xs font-semibold">
-                  {bpm == null ? '—' : `${bpm} bpm`}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-[92px_1fr_56px] items-center gap-2">
-                <span className="text-xs text-muted-foreground">
-                  Temperatura
-                </span>
-
-                <div className="h-2 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-[#FFB703]"
-                    style={{ width: `${tempWidth}%` }}
-                  />
-                </div>
-
-                <span className="text-right text-xs font-semibold">
-                  {temp == null ? '—' : `${temp} °C`}
-                </span>
-              </div>
+            <div className="grid gap-2.5">
+              <Medidor rotulo="Batimentos" valor={animal.batimentos} largura={larguraBpm} cor="#FF4D5A" unidade="bpm" />
+              <Medidor rotulo="Temperatura" valor={animal.temperatura} largura={larguraTemp} cor="#FFB703" unidade="°C" />
             </div>
-          </div>
+          </li>
         );
       })}
-    </div>
+    </ul>
   );
 }
 
 function BatteryBars({ coleiras }) {
   const data = coleiras.filter(
-    (coleira) =>
-      coleira.bateria !== null &&
-      coleira.bateria !== undefined &&
-      coleira.bateria !== '' &&
-      Number.isFinite(Number(coleira.bateria))
+    (c) => c.bateria !== null && c.bateria !== undefined && c.bateria !== '' && Number.isFinite(Number(c.bateria))
   );
 
   if (data.length === 0) {
     return (
       <div className="flex min-h-24 flex-col items-center justify-center rounded-xl border border-dashed border-border px-4 py-6 text-center">
-        <p className="text-sm font-medium">
-          Dados de bateria indisponíveis
-        </p>
-
+        <p className="text-sm font-bold">Dados de bateria indisponíveis</p>
         <p className="mt-1 max-w-lg text-xs text-muted-foreground">
-          A API ainda não registra o nível de carga das coleiras.
-          Esse indicador será exibido quando a medição de bateria for integrada.
+          A API ainda não registra o nível de carga das coleiras. O indicador aparecerá
+          assim que a medição for integrada.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="grid gap-3">
+    <ul className="grid gap-3">
       {data.map((coleira) => {
-        const bateria = Math.min(
-          100,
-          Math.max(0, Number(coleira.bateria))
-        );
-
-        const color =
-          bateria > 50
-            ? '#06D001'
-            : bateria > 20
-              ? '#FFB703'
-              : '#E63946';
+        const bateria = Math.min(100, Math.max(0, Number(coleira.bateria)));
+        const cor = bateria > 50 ? '#05D900' : bateria > 20 ? '#FFB703' : '#FF4D5A';
 
         return (
-          <div
-            key={coleira.id}
-            className="grid grid-cols-[100px_1fr_44px] items-center gap-3"
-          >
-            <span className="font-mono text-xs text-muted-foreground">
-              {coleira.numero_etiqueta}
-            </span>
-
+          <li key={coleira.id} className="grid grid-cols-[100px_1fr_44px] items-center gap-3">
+            <span className="truncate font-mono text-xs text-muted-foreground">{coleira.numero_etiqueta}</span>
             <div className="h-3 overflow-hidden rounded-full bg-muted">
-              <div
-                className="h-full rounded-full"
-                style={{
-                  width: `${bateria}%`,
-                  backgroundColor: color,
-                }}
-              />
+              <div className="h-full rounded-full" style={{ width: `${bateria}%`, backgroundColor: cor }} />
             </div>
-
-            <span className="text-right text-xs font-semibold">
-              {bateria}%
-            </span>
-          </div>
+            <span className="text-right text-xs font-bold">{bateria}%</span>
+          </li>
         );
       })}
-    </div>
+    </ul>
   );
 }
 
-export default function DashboardCharts({
-  bubalinos = [],
-  coleiras = [],
-}) {
-  const total = bubalinos.length;
-  const statuses = statusData(bubalinos);
-
+export default function DashboardCharts({ bubalinos = [], coleiras = [] }) {
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-      <section className="rounded-xl border border-border bg-card p-5">
-        <div className="mb-4">
-          <h2 className="text-base font-semibold">
-            Status do rebanho
-          </h2>
+      <Painel titulo="Status do rebanho" descricao="Distribuição atual dos bubalinos monitorados">
+        <DonutChart data={dadosPorStatus(bubalinos)} total={bubalinos.length} />
+      </Painel>
 
-          <p className="text-sm text-muted-foreground">
-            Distribuição atual dos bubalinos monitorados
-          </p>
-        </div>
-
-        <DonutChart data={statuses} total={total} />
-      </section>
-
-      <section className="rounded-xl border border-border bg-card p-5">
-        <div className="mb-4">
-          <h2 className="text-base font-semibold">
-            Sinais vitais
-          </h2>
-
-          <p className="text-sm text-muted-foreground">
-            Sinais dos animais classificados como estressados pela API
-          </p>
-        </div>
-
+      <Painel titulo="Sinais vitais em alerta" descricao="Animais classificados como estressados pelas coleiras">
         <StressRanking bubalinos={bubalinos} />
-      </section>
+      </Painel>
 
-      <section className="rounded-xl border border-border bg-card p-5 lg:col-span-2">
-        <div className="mb-4">
-          <h2 className="text-base font-semibold">
-            Bateria das coleiras
-          </h2>
-
-          <p className="text-sm text-muted-foreground">
-            Nível de carga dos dispositivos em campo
-          </p>
-        </div>
-
+      <Painel
+        className="lg:col-span-2"
+        titulo="Bateria das coleiras"
+        descricao="Nível de carga dos dispositivos em campo"
+      >
         <BatteryBars coleiras={coleiras} />
-      </section>
+      </Painel>
     </div>
   );
 }
