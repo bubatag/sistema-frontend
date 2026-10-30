@@ -1,8 +1,8 @@
-import { useState } from 'react';
+
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { NativeSelect } from '@/components/ui/native-select';
 import {
   Dialog,
   DialogContent,
@@ -16,23 +16,28 @@ const initialForm = {
   numero_etiqueta: '',
   localizacao: '',
   endereco_ip: '',
-  status: 'ativa',
 };
 
 function formularioDe(coleira) {
   if (!coleira) return { ...initialForm };
+
   return {
     numero_etiqueta: coleira.numero_etiqueta || '',
     localizacao: coleira.localizacao || '',
     endereco_ip: coleira.endereco_ip || '',
-    status: coleira.status || 'ativa',
   };
 }
 
 function ColeiraForm({ coleira, onSave, onCancel, saving, erro }) {
   const [form, setForm] = useState(() => formularioDe(coleira));
 
-  const alterar = (campo, valor) => setForm((anterior) => ({ ...anterior, [campo]: valor }));
+  useEffect(() => {
+    setForm(formularioDe(coleira));
+  }, [coleira]);
+
+  const alterar = (campo, valor) => {
+    setForm((anterior) => ({ ...anterior, [campo]: valor }));
+  };
 
   const podeSalvar = form.numero_etiqueta.trim() !== '' && !saving;
 
@@ -84,20 +89,11 @@ function ColeiraForm({ coleira, onSave, onCancel, saving, erro }) {
         </div>
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="coleira-status">Situação</Label>
-        <NativeSelect
-          id="coleira-status"
-          value={form.status}
-          onChange={(e) => alterar('status', e.target.value)}
-        >
-          <option value="ativa">Ativa</option>
-          <option value="inativa">Inativa</option>
-        </NativeSelect>
-      </div>
-
       {erro && (
-        <p role="alert" className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+        <p
+          role="alert"
+          className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive"
+        >
           {erro}
         </p>
       )}
@@ -106,6 +102,7 @@ function ColeiraForm({ coleira, onSave, onCancel, saving, erro }) {
         <Button type="button" variant="ghost" onClick={onCancel}>
           Cancelar
         </Button>
+
         <Button type="submit" disabled={!podeSalvar}>
           {saving ? 'Salvando...' : 'Salvar coleira'}
         </Button>
@@ -114,14 +111,25 @@ function ColeiraForm({ coleira, onSave, onCancel, saving, erro }) {
   );
 }
 
-export default function ColeiraModal({ open, onOpenChange, coleira, onSave, saving, erro }) {
+export default function ColeiraModal({
+  open,
+  onOpenChange,
+  coleira,
+  onSave,
+  saving,
+  erro,
+}) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{coleira ? 'Editar coleira' : 'Cadastrar coleira'}</DialogTitle>
+          <DialogTitle>
+            {coleira ? 'Editar coleira' : 'Cadastrar coleira'}
+          </DialogTitle>
+
           <DialogDescription>
-            Cadastre a coleira agora. A associação com um bubalino é feita depois.
+            Cadastre ou edite os dados da coleira. A associação com um
+            bubalino é feita separadamente.
           </DialogDescription>
         </DialogHeader>
 
