@@ -1,23 +1,42 @@
-// Rotas da API usadas para cadastrar, editar, desativar e reativar.
-
 export const ENDPOINTS = {
   coleiras: {
     criar: (usuarioId) =>
-      `/api/coleiras/usuario/${usuarioId}`, // POST
+      `/api/coleiras/usuario/${usuarioId}`,
 
     atualizar: (usuarioId, id) =>
-      `/api/coleiras/usuario/${usuarioId}/${id}`, // PUT
+      `/api/coleiras/usuario/${usuarioId}/${id}`,
 
     excluir: (usuarioId, id) =>
-      `/api/coleiras/usuario/${usuarioId}/${id}`, // DELETE - desativar
+      `/api/coleiras/usuario/${usuarioId}/${id}`,
+
+    excluirPermanentemente: (usuarioId, id) =>
+      `/api/coleiras/usuario/${usuarioId}/${id}/permanente`,
 
     reativar: (usuarioId, id) =>
-      `/api/coleiras/usuario/${usuarioId}/${id}/reativar`, // PATCH
+      `/api/coleiras/usuario/${usuarioId}/${id}/reativar`,
+
+    desvincular: (usuarioId, id) =>
+      `/api/coleiras/usuario/${usuarioId}/${id}/desvincular`,
   },
 
   bubalinos: {
-    criar: () => '/api/bubalinos', // POST
-    atualizar: (id) => `/api/bubalinos/${id}`, // PUT
-    excluir: (id) => `/api/bubalinos/${id}`, // DELETE
+    listar: () => '/api/bubalinos',
+
+    criar: () => '/api/bubalinos',
+
+    atualizar: (id) =>
+      `/api/bubalinos/${id}`,
+
+    excluir: (id) =>
+      `/api/bubalinos/${id}`,
+
+    reativar: (id) =>
+      `/api/bubalinos/${id}/reativar`,
+
+    excluirPermanentemente: (id) =>
+      `/api/bubalinos/${id}/permanente`,
+
+    desvincular: (id) =>
+      `/api/bubalinos/${id}/desvincular`,
   },
 };

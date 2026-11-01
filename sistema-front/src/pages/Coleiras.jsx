@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
@@ -6,6 +7,8 @@ import {
   RefreshCw,
   Plus,
   RotateCcw,
+  Trash2,
+  Unlink,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -39,14 +42,38 @@ function paraFormulario(c) {
   };
 }
 
+function coleiraEstaVinculada(coleira) {
+  return Boolean(
+    coleira?.bubalino_id ||
+    coleira?.bubalino?._id ||
+    coleira?.bubalino?.id ||
+    coleira?.bubalino
+  );
+}
+
+function nomeBubalino(coleira) {
+  return (
+    coleira?.bubalino?.n_etiqueta ||
+    coleira?.bubalino?.nome ||
+    'animal vinculado'
+  );
+}
+
 export default function Coleiras() {
   const [busca, setBusca] = useState('');
   const [filtroStatus, setFiltroStatus] = useState('ativas');
   const [modalAberto, setModalAberto] = useState(false);
   const [editando, setEditando] = useState(null);
   const [aExcluir, setAExcluir] = useState(null);
+  const [aExcluirPermanentemente, setAExcluirPermanentemente] =
+    useState(null);
+  const [aDesvincular, setADesvincular] = useState(null);
+
   const [salvando, setSalvando] = useState(false);
   const [excluindo, setExcluindo] = useState(false);
+  const [excluindoPermanentemente, setExcluindoPermanentemente] =
+    useState(false);
+  const [desvinculando, setDesvinculando] = useState(false);
   const [reativando, setReativando] = useState(null);
   const [erroAoSalvar, setErroAoSalvar] = useState('');
 
@@ -85,10 +112,17 @@ export default function Coleiras() {
     return texto.includes(termo);
   });
 
-  const atualizarLista = () =>
-    queryClient.invalidateQueries({
-      queryKey: ['coleiras', usuarioId],
-    });
+  // Atualiza os dados das coleiras e dos bubalinos.
+  const atualizarLista = async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ['coleiras', usuarioId],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['bubalinos', usuarioId],
+      }),
+    ]);
+  };
 
   const abrirCadastro = () => {
     setErroAoSalvar('');
@@ -152,6 +186,7 @@ export default function Coleiras() {
     }
   };
 
+  // Desativa a coleira, preservando o vínculo com o bubalino.
   const confirmarExclusao = async () => {
     if (!aExcluir || !usuarioId) return;
 
@@ -175,6 +210,81 @@ export default function Coleiras() {
       );
     } finally {
       setExcluindo(false);
+    }
+  };
+
+  // Encerra o vínculo sem excluir o cadastro do bubalino.
+  const confirmarDesvinculacao = async () => {
+    if (!aDesvincular || !usuarioId) return;
+
+    const id = aDesvincular._id || aDesvincular.id;
+
+    setDesvinculando(true);
+
+    try {
+      await api.patch(
+        ENDPOINTS.coleiras.desvincular(usuarioId, id)
+      );
+
+      await atualizarLista();
+
+      toast.success(
+        'Bubalino desvinculado. O cadastro do animal foi mantido.'
+      );
+
+      setADesvincular(null);
+    } catch (err) {
+      toast.error(
+        mensagemDeErro(err, 'Não foi possível desvincular o bubalino.')
+      );
+    } finally {
+      setDesvinculando(false);
+    }
+  };
+
+  // Exclui permanentemente somente uma coleira inativa e sem vínculo.
+  const confirmarExclusaoPermanente = async () => {
+    if (!aExcluirPermanentemente || !usuarioId) return;
+
+    if (aExcluirPermanentemente.ativo !== false) {
+      toast.error('Desative a coleira antes de excluí-la permanentemente.');
+      return;
+    }
+
+    if (coleiraEstaVinculada(aExcluirPermanentemente)) {
+      toast.error(
+        'Desvincule o bubalino antes de excluir permanentemente a coleira.'
+      );
+      return;
+    }
+
+    setExcluindoPermanentemente(true);
+
+    try {
+      await api.delete(
+        ENDPOINTS.coleiras.excluirPermanentemente(
+          usuarioId,
+          aExcluirPermanentemente._id ||
+            aExcluirPermanentemente.id
+        )
+      );
+
+      await atualizarLista();
+
+      toast.success(
+        'Coleira excluída permanentemente. O histórico foi preservado.'
+      );
+
+      setAExcluirPermanentemente(null);
+    } catch (err) {
+      toast.error(
+        mensagemDeErro(
+          err,
+          'Não foi possível excluir permanentemente a coleira.'
+        )
+      );
+    } finally {
+      setExcluindoPermanentemente(false);
     }
   };
 
@@ -209,6 +319,69 @@ export default function Coleiras() {
     filtroStatus === 'ativas'
       ? 'Nenhuma coleira ativa'
       : 'Nenhuma coleira inativa';
+
+  const acoesAtivas = (coleira) => (
+    <div className="flex flex-wrap justify-end gap-2">
+      <RowActions
+        nome={`coleira ${coleira.n_coleira}`}
+        onEdit={() => abrirEdicao(coleira)}
+        onDelete={() => setAExcluir(coleira)}
+      />
+
+      {coleiraEstaVinculada(coleira) && (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setADesvincular(coleira)}
+        >
+          <Unlink />
+          Desvincular
+        </Button>
+      )}
+    </div>
+  );
+
+  const acoesInativas = (coleira) => (
+    <div className="flex flex-wrap justify-end gap-2">
+      {coleiraEstaVinculada(coleira) && (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => setADesvincular(coleira)}
+        >
+          <Unlink />
+          Desvincular
+        </Button>
+      )}
+
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => reativarColeira(coleira)}
+        disabled={reativando === (coleira._id || coleira.id)}
+      >
+        <RotateCcw />
+        {reativando === (coleira._id || coleira.id)
+          ? 'Reativando...'
+          : 'Reativar'}
+      </Button>
+
+      <Button
+        size="sm"
+        variant="destructive"
+        onClick={() => setAExcluirPermanentemente(coleira)}
+        disabled={coleiraEstaVinculada(coleira)}
+        title={
+          coleiraEstaVinculada(coleira)
+            ? 'Desvincule o bubalino antes de excluir.'
+            : 'Excluir permanentemente'
+        }
+      >
+        <Trash2 />
+        Excluir
+      </Button>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -310,6 +483,7 @@ export default function Coleiras() {
         />
       ) : (
         <>
+          {/* Tabela para telas médias e grandes */}
           <div className="surface hidden overflow-hidden md:block">
             <div className="overflow-x-auto">
               <table className="w-full">
@@ -359,7 +533,9 @@ export default function Coleiras() {
                       </td>
 
                       <td className="px-4 py-3.5 text-sm">
-                        <div>{c.bubalino?.n_etiqueta || '—'}</div>
+                        <div>
+                          {c.bubalino?.n_etiqueta || '—'}
+                        </div>
 
                         {c.bubalino?.raca && (
                           <div className="text-xs text-muted-foreground">
@@ -375,29 +551,9 @@ export default function Coleiras() {
                       </td>
 
                       <td className="px-4 py-3.5">
-                        {c.ativo === false ? (
-                          <div className="flex justify-end">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => reativarColeira(c)}
-                              disabled={
-                                reativando === (c._id || c.id)
-                              }
-                            >
-                              <RotateCcw />
-                              {reativando === (c._id || c.id)
-                                ? 'Reativando...'
-                                : 'Reativar'}
-                            </Button>
-                          </div>
-                        ) : (
-                          <RowActions
-                            nome={`coleira ${c.n_coleira}`}
-                            onEdit={() => abrirEdicao(c)}
-                            onDelete={() => setAExcluir(c)}
-                          />
-                        )}
+                        {c.ativo === false
+                          ? acoesInativas(c)
+                          : acoesAtivas(c)}
                       </td>
                     </tr>
                   ))}
@@ -406,6 +562,7 @@ export default function Coleiras() {
             </div>
           </div>
 
+          {/* Cartões para celular */}
           <ul className="space-y-3 md:hidden">
             {filtradas.map((c, indice) => (
               <li
@@ -434,7 +591,9 @@ export default function Coleiras() {
                     <dt className="text-xs text-muted-foreground">
                       Bubalino
                     </dt>
-                    <dd>{c.bubalino?.n_etiqueta || '—'}</dd>
+                    <dd>
+                      {c.bubalino?.n_etiqueta || '—'}
+                    </dd>
                   </div>
 
                   <div className="col-span-2">
@@ -448,26 +607,17 @@ export default function Coleiras() {
                 </dl>
 
                 <div className="mt-2 border-t border-border pt-2">
-                  {c.ativo === false ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full"
-                      onClick={() => reativarColeira(c)}
-                      disabled={reativando === (c._id || c.id)}
-                    >
-                      <RotateCcw />
-                      {reativando === (c._id || c.id)
-                        ? 'Reativando...'
-                        : 'Reativar coleira'}
-                    </Button>
-                  ) : (
-                    <RowActions
-                      nome={`coleira ${c.n_coleira}`}
-                      onEdit={() => abrirEdicao(c)}
-                      onDelete={() => setAExcluir(c)}
-                    />
-                  )}
+                  {c.ativo === false
+                    ? (
+                      <div className="flex flex-col gap-2">
+                        {acoesInativas(c)}
+                      </div>
+                    )
+                    : (
+                      <div className="flex flex-col gap-2">
+                        {acoesAtivas(c)}
+                      </div>
+                    )}
                 </div>
               </li>
             ))}
@@ -494,13 +644,44 @@ export default function Coleiras() {
         onOpenChange={(aberto) => !aberto && setAExcluir(null)}
         title="Desativar coleira?"
         description={
-          aExcluir?.bubalino
-            ? `A coleira ${aExcluir?.n_coleira} está associada ao bubalino ${aExcluir.bubalino.n_etiqueta}. Ela será desativada, mas os dados serão mantidos e poderá ser reativada posteriormente.`
-            : `A coleira ${aExcluir?.n_coleira} será desativada. Os dados serão mantidos e ela poderá ser reativada posteriormente.`
+          `A coleira ${aExcluir?.n_coleira} será desativada, mas o vínculo com ${nomeBubalino(aExcluir)} será mantido. O cadastro do bubalino não será excluído.`
         }
         confirmLabel={excluindo ? 'Desativando...' : 'Desativar'}
         destructive
         onConfirm={confirmarExclusao}
+      />
+
+      <ConfirmDialog
+        open={!!aDesvincular}
+        onOpenChange={(aberto) =>
+          !aberto && setADesvincular(null)
+        }
+        title="Desvincular bubalino?"
+        description={
+          `O vínculo entre a coleira ${aDesvincular?.n_coleira} e ${nomeBubalino(aDesvincular)} será encerrado e registrado no histórico. O cadastro do animal será mantido.`
+        }
+        confirmLabel={
+          desvinculando ? 'Desvinculando...' : 'Desvincular'
+        }
+        onConfirm={confirmarDesvinculacao}
+      />
+
+      <ConfirmDialog
+        open={!!aExcluirPermanentemente}
+        onOpenChange={(aberto) =>
+          !aberto && setAExcluirPermanentemente(null)
+        }
+        title="Excluir coleira permanentemente?"
+        description={
+          `A coleira ${aExcluirPermanentemente?.n_coleira} será removida da lista operacional. Seu cadastro e histórico serão arquivados. Essa ação não poderá ser desfeita.`
+        }
+        confirmLabel={
+          excluindoPermanentemente
+            ? 'Excluindo...'
+            : 'Excluir permanentemente'
+        }
+        destructive
+        onConfirm={confirmarExclusaoPermanente}
       />
     </div>
   );

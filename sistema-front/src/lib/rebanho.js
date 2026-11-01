@@ -1,3 +1,4 @@
+
 // Regras de negócio compartilhadas entre as páginas (status, datas, coordenadas).
 
 export const STATUS = {
@@ -78,7 +79,8 @@ export function calcularIdade(dataNascimento) {
 
   const aindaNaoFezAniversario =
     hoje.getMonth() < nascimento.getMonth() ||
-    (hoje.getMonth() === nascimento.getMonth() && hoje.getDate() < nascimento.getDate());
+    (hoje.getMonth() === nascimento.getMonth() &&
+      hoje.getDate() < nascimento.getDate());
 
   if (aindaNaoFezAniversario) idade--;
 
@@ -94,30 +96,44 @@ export function formatarSexo(sexo) {
 
 export function formatarDataHora(valor) {
   if (!valor) return null;
+
   const data = new Date(valor);
   return Number.isNaN(data.getTime()) ? null : data.toLocaleString('pt-BR');
 }
 
-// Converte uma coleira (com o bubalino aninhado) no formato usado pelas telas.
-export function montarBubalino(coleira) {
-  const animal = coleira.bubalino;
+// Converte um bubalino independente no formato usado pelas telas.
+// A coleira é opcional: o animal continua existindo mesmo sem vínculo.
+export function montarBubalino(entrada, coleiraVinculada = null) {
+  // Compatibilidade com o formato antigo: montarBubalino(coleira).
+  const formatoAntigo = Boolean(entrada?.bubalino);
+  const animal = formatoAntigo ? entrada.bubalino : entrada;
+  const coleira = coleiraVinculada || (formatoAntigo ? entrada : null);
+
   if (!animal) return null;
 
   const ultimoDado = obterUltimoRegistro(animal.dados, 'data');
   const ultimaLocalizacao = obterUltimoRegistro(animal.localizacao, 'data');
-  const ultimoEstresse = obterUltimoRegistro(animal.historico_estresse, 'data_estresse');
+  const ultimoEstresse = obterUltimoRegistro(
+    animal.historico_estresse,
+    'data_estresse'
+  );
 
   const estadoEstresse = ultimoEstresse?.estado_estresse || null;
-  const possuiLeitura = Boolean(ultimoDado || ultimaLocalizacao || ultimoEstresse);
+  const possuiLeitura = Boolean(
+    ultimoDado || ultimaLocalizacao || ultimoEstresse
+  );
 
   const latitude = parseCoordenada(ultimaLocalizacao?.latitude);
   const longitude = parseCoordenada(ultimaLocalizacao?.longitude);
+
   const coordenadaValida =
-    latitude !== null && longitude !== null &&
-    Math.abs(latitude) <= 90 && Math.abs(longitude) <= 180;
+    latitude !== null &&
+    longitude !== null &&
+    Math.abs(latitude) <= 90 &&
+    Math.abs(longitude) <= 180;
 
   return {
-    id: animal._id || animal.n_etiqueta,
+    id: animal._id || animal.id || animal.n_etiqueta,
     nome: animal.nome || animal.n_etiqueta || 'Bubalino sem nome',
     numero_etiqueta: animal.n_etiqueta || '—',
     raca: animal.raca || '',
@@ -125,24 +141,38 @@ export function montarBubalino(coleira) {
     dt_nasc: animal.dt_nasc,
     idade: calcularIdade(animal.dt_nasc),
     ativo: animal.ativo !== false,
+
     status: normalizarEstado(estadoEstresse, possuiLeitura),
     estado_estresse: estadoEstresse || 'Sem classificação',
+
     temperatura: ultimoDado?.temperatura ?? null,
     batimentos: ultimoDado?.batimento_cardiaco ?? null,
     data_leitura: ultimoDado?.data ?? null,
+
     latitude: coordenadaValida ? latitude : null,
     longitude: coordenadaValida ? longitude : null,
-    data_localizacao: ultimaLocalizacao?.data || ultimaLocalizacao?.data_localizacao || null,
-    coleira_id: coleira._id,
-    coleira_nome: coleira.n_coleira || '—',
-    coleira_localizacao: coleira.coleira_localizacao || '',
+    data_localizacao:
+      ultimaLocalizacao?.data ||
+      ultimaLocalizacao?.data_localizacao ||
+      null,
+
+    // Informações da coleira são complementares.
+    // Sem vínculo, os campos recebem valores vazios.
+    coleira_id: coleira?._id || coleira?.id || null,
+    coleira_nome: coleira?.n_coleira || '—',
+    coleira_localizacao: coleira?.coleira_localizacao || '',
     coleira_ip: obterIp(coleira),
   };
 }
 
 // O IP pode vir com nomes diferentes dependendo da API.
 export function obterIp(coleira) {
-  return String(coleira?.IP ?? coleira?.ip ?? coleira?.endereco_ip ?? '').trim();
+  return String(
+    coleira?.IP ??
+      coleira?.ip ??
+      coleira?.endereco_ip ??
+      ''
+  ).trim();
 }
 
 // Texto único para busca: ignora acentos, maiúsculas e espaços.
@@ -162,8 +192,12 @@ export function normalizarTermo(termo) {
 
 export function mensagemDeErro(error, padrao) {
   const status = error?.response?.status;
+
   if (status === 401) return 'Sua sessão expirou. Entre novamente.';
-  if (status === 403) return 'Você não tem permissão para consultar esses dados.';
+  if (status === 403) {
+    return 'Você não tem permissão para consultar esses dados.';
+  }
+
   return (
     error?.response?.data?.mensagem ||
     error?.response?.data?.message ||
