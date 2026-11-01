@@ -57,6 +57,8 @@ export default function Localizacao() {
   });
 
   const comLocalizacao = bubalinos.filter((a) => a.latitude !== null && a.longitude !== null);
+  console.log('Bubalinos recebidos:', bubalinos);
+console.log('Bubalinos com localização:', comLocalizacao);
   const selecionado = comLocalizacao.find((a) => a.id === selecionadoId) || null;
   const centro = comLocalizacao.length ? [comLocalizacao[0].latitude, comLocalizacao[0].longitude] : centroPadrao;
 
