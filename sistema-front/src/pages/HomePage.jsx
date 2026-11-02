@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Beef,
   Radio,
   HeartPulse,
   AlertTriangle,
@@ -11,6 +10,7 @@ import {
   Thermometer,
   ChevronRight,
 } from 'lucide-react';
+import BuffaloIcon from '@/components/brand/BuffaloIcon';
 
 import { useColeiras } from '@/hooks/useColeiras';
 import { useUsuario } from '@/hooks/useUsuario';
@@ -39,7 +39,7 @@ const atalhos = [
     titulo: 'Bubalinos',
     descricao: 'Consulte cada animal e seu estado de saúde',
     caminho: '/bubalinos',
-    icon: Beef,
+    icon: BuffaloIcon,
   },
   {
     titulo: 'Coleiras',
@@ -121,7 +121,7 @@ export default function HomePage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <KpiCard title="Bubalinos" value={bubalinos.length} icon={Beef} tone="olive" />
+          <KpiCard title="Bubalinos" value={bubalinos.length} icon={BuffaloIcon} tone="olive" />
           <KpiCard title="Coleiras" value={coleiras.length} icon={Radio} tone="primary" />
           <KpiCard title="Saudáveis" value={saudaveis} icon={HeartPulse} tone="primary" />
           <KpiCard

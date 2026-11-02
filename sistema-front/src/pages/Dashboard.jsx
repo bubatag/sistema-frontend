@@ -1,4 +1,5 @@
-import { Beef, Thermometer, Radio, RefreshCw, AlertTriangle } from 'lucide-react';
+import { Thermometer, Radio, RefreshCw, AlertTriangle } from 'lucide-react';
+import BuffaloIcon from '@/components/brand/BuffaloIcon';
 
 import { useColeiras } from '@/hooks/useColeiras';
 import { mensagemDeErro } from '@/lib/rebanho';
@@ -70,7 +71,7 @@ export default function Dashboard() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <KpiCard title="Bubalinos monitorados" value={bubalinos.length} icon={Beef} tone="olive" />
+          <KpiCard title="Bubalinos monitorados" value={bubalinos.length} icon={BuffaloIcon} tone="olive" />
           <KpiCard
             title="Temperatura média"
             value={tempMedia ? `${tempMedia} °C` : '—'}
@@ -90,7 +91,7 @@ export default function Dashboard() {
 
       {!isLoading && !isError && bubalinos.length === 0 && (
         <EmptyState
-          icon={Beef}
+          icon={BuffaloIcon}
           title="Nenhum bubalino monitorado"
           description="Quando houver animais associados às coleiras da sua conta, eles aparecerão aqui."
         />
