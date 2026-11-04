@@ -342,7 +342,7 @@ A proposta é desenvolver uma solução que auxilie os produtores na gestão do 
 
 <div align="center">
 
-**🐂 BUBATAG — Conectando tradição e inovação.**
+**🐃 BUBATAG — Conectando tradição e inovação.**
 
 *Tecnologia a serviço do bem-estar animal e da produção sustentável.*
 
