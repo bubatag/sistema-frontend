@@ -20,6 +20,7 @@ import Localizacao from "./pages/Localizacao";
 import Perfil from "./pages/Perfil";
 import Login from "./pages/Login";
 import Cadastro from "./pages/Cadastro";
+import Historico from './pages/Historico';
 
 function AuthenticatedApp() {
   const { user, isLoadingAuth } = useAuth();
@@ -57,6 +58,7 @@ function AuthenticatedApp() {
         <Route path="/localizacao" element={<Localizacao />} />
         <Route path="/perfil" element={<Perfil />} />
         <Route path="*" element={<PageNotFound />} />
+        <Route path="/historico" element={<Historico />} />
       </Route>
 
       <Route path="/login" element={<Navigate to="/" replace />} />

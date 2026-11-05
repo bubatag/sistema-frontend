@@ -1,3 +1,4 @@
+
 export const ENDPOINTS = {
   coleiras: {
     criar: (usuarioId) =>
@@ -38,5 +39,10 @@ export const ENDPOINTS = {
 
     desvincular: (id) =>
       `/api/bubalinos/${id}/desvincular`,
+  },
+
+  relatorios: {
+    historicoColeira: (numeroColeira) =>
+      `/api/relatorios/coleira/${encodeURIComponent(numeroColeira)}`,
   },
 };
