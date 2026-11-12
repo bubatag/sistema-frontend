@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { db } from '@/offline/database';
+import { registrarOperacao } from '@/offline/operacoes';
 import { api } from '@/services/api';
 import { ENDPOINTS } from '@/services/endpoints';
 import { useColeiras } from '@/hooks/useColeiras';
@@ -32,6 +34,14 @@ import ErrorState from '@/components/shared/ErrorState';
 import ConfirmDialog from '@/components/shared/ConfirmDialog';
 import RowActions from '@/components/shared/RowActions';
 import ColeiraModal from '@/components/coleiras/ColeiraModal';
+
+function falhaDeComunicacao(erro) {
+  if (!erro.response) {
+    return true;
+  }
+
+  return [502, 503, 504].includes(erro.response.status);
+}
 
 function paraFormulario(c) {
   return {
@@ -137,81 +147,148 @@ export default function Coleiras() {
   };
 
   const handleSave = async (form) => {
-    if (!usuarioId) {
-      setErroAoSalvar('Não foi possível identificar o usuário.');
-      return;
-    }
+  if (!usuarioId) {
+    setErroAoSalvar('Não foi possível identificar o usuário.');
+    return;
+  }
 
-    const dados = {
-      n_coleira: form.numero_etiqueta.trim(),
-      coleira_localizacao: form.localizacao.trim(),
-      IP: form.endereco_ip.trim(),
-    };
+  const dados = {
+    n_coleira: form.numero_etiqueta.trim(),
+    coleira_localizacao: form.localizacao.trim(),
+    IP: form.endereco_ip.trim(),
+  };
 
-    setSalvando(true);
-    setErroAoSalvar('');
+  setSalvando(true);
+  setErroAoSalvar('');
 
-    try {
-      if (editando) {
-        await api.put(
-          ENDPOINTS.coleiras.atualizar(usuarioId, editando.id),
-          dados
-        );
-      } else {
-        await api.post(
-          ENDPOINTS.coleiras.criar(usuarioId),
-          dados
-        );
-      }
+  try {
+    // Nesta etapa, a edição continua sendo exclusivamente pela nuvem.
+    if (editando) {
+      await api.put(
+        ENDPOINTS.coleiras.atualizar(usuarioId, editando.id),
+        dados
+      );
 
       await atualizarLista();
       setModalAberto(false);
-
-      toast.success(
-        editando
-          ? 'Coleira atualizada.'
-          : 'Coleira cadastrada com sucesso.'
-      );
-    } catch (err) {
-      setErroAoSalvar(
-        mensagemDeErro(
-          err,
-          editando
-            ? 'Não foi possível atualizar a coleira.'
-            : 'Não foi possível cadastrar a coleira.'
-        )
-      );
-    } finally {
-      setSalvando(false);
+      toast.success('Coleira atualizada.');
+      return;
     }
-  };
 
-  // Desativa a coleira, preservando o vínculo com o bubalino.
-  const confirmarExclusao = async () => {
-    if (!aExcluir || !usuarioId) return;
-
-    setExcluindo(true);
-
+    // 1. Prioriza o cadastro na API.
     try {
-      await api.delete(
-        ENDPOINTS.coleiras.excluir(
-          usuarioId,
-          aExcluir._id || aExcluir.id
-        )
+      await api.post(
+        ENDPOINTS.coleiras.criar(usuarioId),
+        dados
       );
 
       await atualizarLista();
+      setModalAberto(false);
+      toast.success('Coleira cadastrada na nuvem.');
+      return;
+    } catch (erroApi) {
+      // Não registra offline erros de validação ou autenticação.
+      if (!falhaDeComunicacao(erroApi)) {
+        throw erroApi;
+      }
 
-      toast.success('Coleira desativada com sucesso.');
-      setAExcluir(null);
-    } catch (err) {
-      toast.error(
-        mensagemDeErro(err, 'Não foi possível desativar a coleira.')
+      // 2. Sem comunicação com a API: prepara o cadastro local.
+      const clientId = crypto.randomUUID();
+      const agora = new Date().toISOString();
+
+      const coleiraLocal = {
+        ...dados,
+        clientId,
+        serverId: null,
+        usuarioId: String(usuarioId),
+        ativo: true,
+        excluido_em: null,
+        bubalino_id: null,
+        bubalino: null,
+        historico_vinculos: [],
+        statusSync: 'pendente',
+        atualizadoEm: agora,
+      };
+
+      // 3. Salva o registro e a operação na mesma transação local.
+      const coleiraId = await db.transaction(
+        'rw',
+        db.coleiras,
+        db.operacoes,
+        async () => {
+          const id = await db.coleiras.add(coleiraLocal);
+
+          await registrarOperacao({
+            usuarioId,
+            entidade: 'coleira',
+            acao: 'criar',
+            clientId,
+            dados,
+          });
+
+          return id;
+        }
       );
-    } finally {
-      setExcluindo(false);
+
+      // 4. Atualiza o cache do React Query imediatamente.
+      const coleiraParaTela = {
+        ...coleiraLocal,
+        id: coleiraId,
+      };
+
+      queryClient.setQueryData(
+        ['coleiras', usuarioId],
+        (atuais = []) => [...atuais, coleiraParaTela]
+      );
+
+      setModalAberto(false);
+
+      toast.warning(
+        'Coleira salva neste dispositivo. Aguardando sincronização com a nuvem.'
+      );
     }
-  };
+  } catch (err) {
+    setErroAoSalvar(
+      mensagemDeErro(
+        err,
+        editando
+          ? 'Não foi possível atualizar a coleira.'
+          : 'Não foi possível cadastrar a coleira.'
+      )
+    );
+  } finally {
+    setSalvando(false);
+  }
+};
+
+// Desativa a coleira sem excluir o cadastro do bubalino vinculado.
+const confirmarExclusao = async () => {
+  if (!aExcluir || !usuarioId) return;
+
+  const id = aExcluir._id || aExcluir.id;
+
+  setExcluindo(true);
+
+  try {
+    await api.delete(
+      ENDPOINTS.coleiras.excluir(usuarioId, id)
+    );
+
+    await atualizarLista();
+
+    toast.success(
+      'Coleira desativada. O vínculo com o bubalino foi mantido.'
+    );
+
+    setAExcluir(null);
+  } catch (err) {
+    toast.error(
+      mensagemDeErro(err, 'Não foi possível desativar a coleira.')
+    );
+  } finally {
+    setExcluindo(false);
+  }
+};
 
   // Encerra o vínculo sem excluir o cadastro do bubalino.
   const confirmarDesvinculacao = async () => {
