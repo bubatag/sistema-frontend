@@ -4,6 +4,8 @@ import { Search, Thermometer, HeartPulse, RefreshCw, Plus } from 'lucide-react';
 import BuffaloIcon from '@/components/brand/BuffaloIcon';
 import { toast } from 'sonner';
 
+import { db } from '@/offline/database';
+import { registrarOperacao } from '@/offline/operacoes';
 import { api } from '@/services/api';
 import { ENDPOINTS } from '@/services/endpoints';
 import { useColeiras } from '@/hooks/useColeiras';
@@ -33,6 +35,46 @@ function combinaFiltro(animal, filtro) {
   if (filtro === 'all') return true;
   if (filtro === 'outros') return animal.status !== 'saudavel' && animal.status !== 'estressado';
   return animal.status === filtro;
+}
+
+// Indica falha de comunicação com a API (permite salvar offline).
+// Erros de validação ou autenticação (4xx) não entram aqui.
+function falhaDeComunicacao(erro) {
+  if (!erro.response) {
+    return true;
+  }
+
+  return [502, 503, 504].includes(erro.response.status);
+}
+
+// Localiza, no IndexedDB, a coleira escolhida no formulário.
+// O valor do select é o _id da nuvem ou o id numérico local
+// (quando a coleira ainda está pendente de sincronização).
+async function localizarColeiraLocal(usuarioId, coleiraIdDoFormulario) {
+  const alvo = String(coleiraIdDoFormulario);
+
+  const locais = await db.coleiras
+    .where('usuarioId')
+    .equals(String(usuarioId))
+    .toArray();
+
+  return (
+    locais.find((item) => String(item.serverId || '') === alvo) ||
+    locais.find((item) => String(item.id) === alvo) ||
+    null
+  );
+}
+
+// Identifica, na lista em cache da tela, a coleira escolhida.
+function ehMesmaColeira(item, coleiraLocal) {
+  if (coleiraLocal.clientId && item.clientId === coleiraLocal.clientId) {
+    return true;
+  }
+
+  return (
+    Boolean(coleiraLocal.serverId) &&
+    String(item._id || item.id || '') === String(coleiraLocal.serverId)
+  );
 }
 
 function Leitura({ icon: Icon, cor, valor, unidade }) {
@@ -67,7 +109,12 @@ export default function Bubalinos() {
     [coleiras, editando]
   );
 
-  const atualizarLista = () => queryClient.invalidateQueries({ queryKey: ['coleiras', usuarioId] });
+  // Atualiza as coleiras e os bubalinos.
+  const atualizarLista = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['coleiras', usuarioId] }),
+      queryClient.invalidateQueries({ queryKey: ['bubalinos', usuarioId] }),
+    ]);
 
   const abrirCadastro = () => {
     setErroAoSalvar('');
@@ -81,23 +128,135 @@ export default function Bubalinos() {
     setModalAberto(true);
   };
 
+  // Sem comunicação com a API: salva o animal e a operação no dispositivo.
+  const salvarOffline = async (dados) => {
+    const coleiraLocal = await localizarColeiraLocal(usuarioId, dados.coleira_id);
+
+    if (!coleiraLocal) {
+      const erroLocal = new Error(
+        'Não foi possível localizar a coleira neste dispositivo. Conecte-se à internet e tente novamente.'
+      );
+      erroLocal.local = true;
+      throw erroLocal;
+    }
+
+    const clientId = crypto.randomUUID();
+    const agora = new Date().toISOString();
+
+    const bubalinoLocal = {
+      ...dados,
+      clientId,
+      serverId: null,
+      usuarioId: String(usuarioId),
+      coleiraClientId: coleiraLocal.clientId,
+      excluido_em: null,
+      statusSync: 'pendente',
+      atualizadoEm: agora,
+    };
+
+    // Salva o animal, o vínculo local e a operação na mesma transação.
+    const bubalinoId = await db.transaction(
+      'rw',
+      db.bubalinos,
+      db.coleiras,
+      db.operacoes,
+      async () => {
+        const id = await db.bubalinos.add(bubalinoLocal);
+
+        await db.coleiras.update(coleiraLocal.id, {
+          bubalino_id: String(id),
+          bubalino: {
+            id,
+            n_etiqueta: dados.n_etiqueta,
+            raca: dados.raca,
+          },
+          atualizadoEm: agora,
+        });
+
+        await registrarOperacao({
+          usuarioId,
+          entidade: 'bubalino',
+          acao: 'criar',
+          clientId,
+          coleiraClientId: coleiraLocal.clientId,
+          dados,
+        });
+
+        return id;
+      }
+    );
+
+    // Atualiza o cache do React Query imediatamente.
+    queryClient.setQueryData(['bubalinos', usuarioId], (atuais = []) => [
+      ...atuais,
+      { ...bubalinoLocal, id: bubalinoId },
+    ]);
+
+    queryClient.setQueryData(['coleiras', usuarioId], (atuais = []) =>
+      atuais.map((item) =>
+        ehMesmaColeira(item, coleiraLocal)
+          ? {
+              ...item,
+              bubalino_id: String(bubalinoId),
+              bubalino: {
+                id: bubalinoId,
+                n_etiqueta: dados.n_etiqueta,
+                raca: dados.raca,
+              },
+            }
+          : item
+      )
+    );
+
+    setModalAberto(false);
+
+    toast.warning(
+      'Bubalino salvo neste dispositivo. Aguardando sincronização com a nuvem.'
+    );
+  };
+
   const handleSave = async (dados) => {
     setSalvando(true);
     setErroAoSalvar('');
 
     try {
+      // Nesta etapa, a edição continua sendo exclusivamente pela nuvem.
       if (editando) {
         await api.put(ENDPOINTS.bubalinos.atualizar(editando.id), dados);
-      } else {
-        await api.post(ENDPOINTS.bubalinos.criar(), dados);
+
+        await atualizarLista();
+        setModalAberto(false);
+        toast.success('Bubalino atualizado.');
+        return;
       }
 
-      await atualizarLista();
-      setModalAberto(false);
-      toast.success(editando ? 'Bubalino atualizado.' : 'Bubalino cadastrado com sucesso.');
+      // 1. Prioriza o cadastro na API.
+      try {
+        await api.post(ENDPOINTS.bubalinos.criar(), dados);
+
+        await atualizarLista();
+        setModalAberto(false);
+        toast.success('Bubalino cadastrado com sucesso.');
+        return;
+      } catch (erroApi) {
+        // Não registra offline erros de validação ou autenticação.
+        if (!falhaDeComunicacao(erroApi)) {
+          throw erroApi;
+        }
+
+        // 2. Sem comunicação com a API: cadastro local.
+        await salvarOffline(dados);
+      }
     } catch (err) {
       setErroAoSalvar(
-        mensagemDeErro(err, editando ? 'Não foi possível atualizar o bubalino.' : 'Não foi possível cadastrar o bubalino.')
+        err?.local
+          ? err.message
+          : mensagemDeErro(
+              err,
+              editando
+                ? 'Não foi possível atualizar o bubalino.'
+                : 'Não foi possível cadastrar o bubalino.'
+            )
       );
     } finally {
       setSalvando(false);

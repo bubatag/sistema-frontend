@@ -5,11 +5,15 @@ import Sidebar from './SideBar';
 import TopBar from './TopBar';
 import { cn } from '@/lib/utils';
 import { useUsuario } from '@/hooks/useUsuario';
+import { useSincronizacaoAutomatica } from '@/hooks/useSincronizacaoAutomatica';
 
 export default function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const { usuario } = useUsuario();
+
+  // Envia para a nuvem o que foi salvo offline.
+  useSincronizacaoAutomatica();
 
   const userName = usuario?.nome || usuario?.full_name || usuario?.email || '';
 

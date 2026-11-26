@@ -1,4 +1,3 @@
-
 export const ENDPOINTS = {
   coleiras: {
     criar: (usuarioId) =>
@@ -44,5 +43,9 @@ export const ENDPOINTS = {
   relatorios: {
     historicoColeira: (numeroColeira) =>
       `/api/relatorios/coleira/${encodeURIComponent(numeroColeira)}`,
+  },
+
+  sincronizacao: {
+    enviar: () => '/api/sincronizacao',
   },
 };
