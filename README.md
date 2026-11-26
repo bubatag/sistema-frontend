@@ -6,7 +6,7 @@ O **BUBATAG Sistema** é uma plataforma web desenvolvida para auxiliar produtore
 
 A aplicação reúne informações dos animais, dispositivos IoT e indicadores de monitoramento em uma interface centralizada, permitindo acompanhar dados importantes relacionados à saúde, localização e condições dos equipamentos.
 
-Por meio da integração entre **Internet das Coisas (IoT), desenvolvimento de software e análise de dados**, o BUBATAG busca tornar o manejo do rebanho mais seguro, eficiente e inteligente, contribuindo para o bem-estar animal e uma produção mais sustentável.
+Por meio da integração entre Internet das Coisas (IoT), desenvolvimento de software e análise de dados, o BUBATAG busca tornar o manejo do rebanho mais seguro, eficiente e inteligente, contribuindo para o bem-estar animal e uma produção mais sustentável.
 
 ---
 
@@ -31,24 +31,23 @@ A plataforma possui diferentes módulos, organizados para facilitar a navegaçã
 
 | Módulo | Descrição |
 |---|---|
-| **Início** | Apresenta uma visão geral do rebanho, indicadores e alertas ativos. |
-| **Dashboard** | Exibe indicadores de monitoramento, temperatura média, coleiras e gráficos. |
-| **Bubalinos** | Permite cadastrar, consultar, editar, pesquisar e excluir animais. |
-| **Coleiras** | Gerencia os dispositivos IoT, seus cadastros, estados e vínculos com os animais. |
-| **Localização** | Apresenta os animais em um mapa interativo, conforme as coordenadas disponíveis. |
-| **Perfil** | Disponibiliza informações e configurações relacionadas ao usuário. |
-| **Autenticação** | Oferece funcionalidades de login, cadastro e gerenciamento de sessão. |
+| Início | Apresenta uma visão geral do rebanho, indicadores e alertas ativos. |
+| Dashboard | Exibe indicadores de monitoramento, temperatura média, coleiras e gráficos. |
+| Bubalinos | Permite cadastrar, consultar, editar, pesquisar e excluir animais. |
+| Coleiras | Gerencia os dispositivos IoT, seus cadastros, estados e vínculos com os animais. |
+| Localização | Apresenta os animais em um mapa interativo, conforme as coordenadas disponíveis. |
+| Histórico | Permite acompanhar informações e registros anteriores de monitoramento. |
+| Perfil | Disponibiliza informações e configurações relacionadas ao usuário. |
+| Autenticação | Oferece funcionalidades de login, cadastro e gerenciamento de sessão. |
 
 ### Monitoramento dos animais
-
-O sistema organiza os animais de acordo com as informações recebidas e seus respectivos estados de monitoramento.
 
 Entre as informações acompanhadas estão:
 
 - Temperatura corporal.
 - Frequência cardíaca.
 - Estado de saúde e estresse.
-- Identificação do animal.
+- Identificação do animal por etiqueta.
 - Localização geográfica.
 - Informações da coleira vinculada.
 
@@ -61,24 +60,26 @@ Entre as informações acompanhadas estão:
 | 🟡 Fora da área | Animal identificado fora da área monitorada. |
 | ⚪ Sem conexão | Ausência de comunicação ou de dados recentes do dispositivo. |
 
-## 🛠️ Tecnologias utilizadas
+---
 
-O projeto utiliza tecnologias modernas para construção da interface, gerenciamento de dados e comunicação com a API.
+## 🛠️ Tecnologias utilizadas
 
 | Tecnologia | Aplicação |
 |---|---|
-| [React](https://react.dev/) | Construção das interfaces e componentes da aplicação. |
-| [Vite](https://vite.dev/) | Ferramenta de desenvolvimento e compilação do frontend. |
-| [JavaScript](https://developer.mozilla.org/pt-BR/docs/Web/JavaScript) | Linguagem de programação. |
-| [Tailwind CSS](https://tailwindcss.com/) | Estilização e construção dos layouts. |
-| [React Router](https://reactrouter.com/) | Gerenciamento das rotas e navegação. |
-| [TanStack Query](https://tanstack.com/query/latest) | Gerenciamento e atualização dos dados obtidos pela API. |
-| [Axios](https://axios-http.com/) | Comunicação HTTP com o backend. |
-| [Leaflet](https://leafletjs.com/) | Exibição de mapas interativos. |
-| [React Leaflet](https://react-leaflet.js.org/) | Integração dos mapas com React. |
-| [Lucide React](https://lucide.dev/) | Biblioteca de ícones. |
-| [Radix UI](https://www.radix-ui.com/) | Componentes de interface e elementos interativos. |
-| [Sonner](https://sonner.emilkowal.ski/) | Exibição de notificações e mensagens ao usuário. |
+| React | Construção das interfaces e componentes da aplicação. |
+| Vite | Ferramenta de desenvolvimento e compilação do frontend. |
+| JavaScript | Linguagem de programação. |
+| Tailwind CSS | Estilização e construção dos layouts. |
+| React Router | Gerenciamento das rotas e navegação. |
+| TanStack Query | Gerenciamento e atualização dos dados obtidos pela API. |
+| Axios | Comunicação HTTP com o backend. |
+| Leaflet | Exibição de mapas interativos. |
+| React Leaflet | Integração dos mapas com React. |
+| Lucide React | Biblioteca de ícones. |
+| Radix UI | Componentes de interface e elementos interativos. |
+| Sonner | Exibição de notificações e mensagens ao usuário. |
+
+---
 
 ## 💻 Como executar o projeto localmente
 
@@ -88,10 +89,10 @@ Siga as instruções abaixo para configurar e executar o sistema em seu computad
 
 Antes de começar, certifique-se de possuir as seguintes ferramentas instaladas:
 
-- **Node.js:** versão 20 LTS recomendada.
-- **npm:** gerenciador de pacotes instalado junto com o Node.js.
-- **Git:** ferramenta para clonar e gerenciar o repositório.
-- **Visual Studio Code:** editor de código recomendado.
+- Node.js: versão 20 LTS recomendada.
+- npm: gerenciador de pacotes instalado junto com o Node.js.
+- Git: ferramenta para clonar e gerenciar o repositório.
+- Visual Studio Code: editor de código recomendado.
 
 Links para instalação:
 
@@ -123,9 +124,7 @@ cd sistema-frontend
 
 ### 3. Entrar na pasta da aplicação
 
-**Atenção:** o código do frontend está dentro da pasta `sistema-front`. É necessário entrar nela antes de instalar as dependências.
-
-Execute:
+O código do frontend está dentro da pasta `sistema-front`. É necessário entrar nela antes de instalar as dependências.
 
 ```bash
 cd sistema-front
@@ -151,8 +150,6 @@ npm ci
 
 Esse comando instala as dependências utilizando as versões registradas no arquivo `package-lock.json`.
 
-Aguarde até que a instalação seja concluída.
-
 **Importante:** não execute esse comando na pasta principal `sistema-frontend`, pois o arquivo `package.json` está dentro de `sistema-front`.
 
 ### 5. Executar o projeto
@@ -167,11 +164,11 @@ O Vite iniciará a aplicação e exibirá um endereço no terminal.
 
 Normalmente, o endereço será:
 
-**http://localhost:5173**
+```text
+http://localhost:5173
+```
 
 Abra esse endereço no navegador para acessar o sistema.
-
-Pronto! A aplicação estará disponível localmente.
 
 ### 6. Encerrar a execução
 
@@ -180,6 +177,8 @@ Para interromper o servidor de desenvolvimento, volte ao terminal e pressione:
 ```text
 Ctrl + C
 ```
+
+---
 
 ## ⚙️ Scripts disponíveis
 
@@ -202,6 +201,8 @@ npm run build
 ```
 
 Caso ambos os comandos sejam executados sem erros, o projeto terá passado pelas verificações de lint e compilação.
+
+---
 
 ## 🔗 Integração com a API
 
@@ -237,7 +238,7 @@ Caso a sessão expire, os dados locais de autenticação são removidos e o usu�
 
 Caso queira desenvolver utilizando o backend em sua máquina, primeiro é necessário clonar e executar o projeto da API.
 
-Repositório:
+**Repositório:**
 
 [API-BUBATAG](https://github.com/bubatag/API-bubatag)
 
@@ -245,7 +246,84 @@ Depois, certifique-se de que a API esteja funcionando na porta `3000`.
 
 O frontend já possui uma configuração de fallback para tentar essa conexão quando a API hospedada estiver indisponível.
 
-**Observação:** o endereço da API está definido diretamente no arquivo `src/services/api.js`. Para modificar os endereços utilizados, consulte esse arquivo.
+Observação: o endereço da API está definido no arquivo `src/services/api.js`. Para modificar os endereços utilizados, consulte esse arquivo.
+
+---
+
+## 🐃 Ambiente de demonstração — Dados de teste
+
+O BUBATAG possui uma proposta de ambiente de demonstração para que novos integrantes da equipe, avaliadores e interessados possam conhecer as funcionalidades do sistema sem precisar cadastrar manualmente um rebanho.
+
+A ideia é disponibilizar um usuário de teste previamente cadastrado, com animais, etiquetas e coleiras associados à sua conta.
+
+**Credenciais propostas para demonstração:**
+
+| Campo | Informação |
+|---|---|
+| Nome | Produtor Demonstração |
+| E-mail | `demo@bubatag.com` |
+| Senha | `Bubatag@123` |
+
+**Atenção:** essas credenciais são uma configuração proposta para a conta de demonstração. Elas somente funcionarão depois que o usuário for criado no banco de dados pelo backend. Não representam uma conta cuja existência ou funcionamento já tenha sido confirmado.
+
+### Dados do rebanho de demonstração
+
+A conta de demonstração deverá possuir quatro bubalinos cadastrados, seguindo a referência visual da plataforma.
+
+| Etiqueta | Raça | Idade | Sexo | Coleira |
+|---|---|---:|---|---|
+| B-001 | Murrah | 6 anos | Macho | COL-01 |
+| B-002 | Murrah | 9 anos | Macho | COL-02 |
+| B-003 | Murrah | 4 anos | Fêmea | Sem coleira |
+| B-004 | Murrah | 7 anos | Fêmea | COL-04 |
+
+### Informações de monitoramento
+
+Os dados iniciais de demonstração deverão apresentar a seguinte situação:
+
+| Etiqueta | Temperatura | Batimentos | Situação |
+|---|---|---|---|
+| B-001 | 34,6 °C | 77 bpm | Saudável |
+| B-002 | Sem leitura | Sem leitura | Sem conexão |
+| B-003 | Sem leitura | Sem leitura | Sem conexão |
+| B-004 | Sem leitura | Sem leitura | Sem conexão |
+
+Essas informações são fictícias e destinadas exclusivamente à demonstração da interface. Não representam medições reais dos animais.
+
+### Como funcionará o cadastro dos dados de demonstração?
+
+Os dados deverão ser inseridos no banco MongoDB por meio de um script de inicialização (*seed*) disponibilizado no projeto da API.
+
+O processo deverá contemplar:
+
+1. Criação do usuário de demonstração.
+2. Cadastro dos quatro bubalinos.
+3. Geração das respectivas etiquetas de identificação.
+4. Cadastro das três coleiras.
+5. Associação das coleiras aos animais correspondentes.
+6. Inserção dos dados iniciais de monitoramento.
+7. Associação de todos os registros ao usuário de demonstração.
+
+O seed deverá verificar se os registros já existem antes de inseri-los, evitando duplicações quando executado novamente.
+
+**Importante:** o seed pertence ao backend, pois é a API que controla a persistência dos dados e a associação entre usuários, animais e coleiras. O frontend apenas consulta e apresenta essas informações.
+
+### Como acessar a demonstração?
+
+Depois que a conta e os dados forem provisionados pelo backend:
+
+1. Execute o frontend seguindo as instruções deste README.
+2. Acesse `http://localhost:5173`.
+3. Abra a tela de login.
+4. Faça login com o email leo@gmail.com e a senha 123456.
+5. Após autenticar, acesse o módulo **Bubalinos**.
+6. Consulte os quatro animais cadastrados e suas respectivas informações.
+
+Dessa forma, será possível explorar a interface com dados previamente cadastrados, incluindo a identificação dos animais, as etiquetas, os dispositivos e os indicadores de monitoramento.
+
+> **Nota de desenvolvimento:** até que o seed seja implementado e executado na API, a conta e os registros descritos nesta seção permanecem como dados planejados para o ambiente de demonstração.
+
+---
 
 ## 📁 Estrutura do projeto
 
@@ -296,12 +374,12 @@ sistema-frontend/
 │   ├── index.html
 │   ├── package.json               # Dependências e scripts
 │   ├── package-lock.json          # Versões das dependências
-│   ├── vite.config.js             # Configuração do Vite
-│   ├── tailwind.config.js         # Configuração do Tailwind CSS
-│   └── README.md                 # Documentação da aplicação
+│   ├── vite.config.js              # Configuração do Vite
+│   ├── tailwind.config.js          # Configuração do Tailwind CSS
+│   └── README.md                  # Documentação da aplicação
 │
 ├── LICENSE
-└── README.md                     # Documentação principal
+└── README.md                      # Documentação principal
 ```
 
 ### Organização dos principais diretórios
@@ -314,6 +392,8 @@ sistema-frontend/
 | `lib/` | Contém contextos, configurações e funções auxiliares. |
 | `services/` | Responsável pela comunicação com serviços externos e API. |
 | `api/` | Reúne adaptadores e integrações relacionadas aos dados. |
+
+---
 
 ## 🎨 Identidade visual
 
@@ -330,9 +410,11 @@ Entre os principais elementos visuais estão:
 
 A experiência de utilização busca facilitar o acesso às informações, considerando também produtores que não possuem familiaridade com sistemas complexos.
 
+---
+
 ## 🎓 Sobre o desenvolvimento
 
-O BUBATAG é um Projeto Integrador desenvolvido no curso de **Tecnologia em Desenvolvimento de Software Multiplataforma**, da Faculdade de Tecnologia de Registro (Fatec Registro), vinculada ao Centro Paula Souza.
+O BUBATAG é um Projeto Integrador desenvolvido no curso de Tecnologia em Desenvolvimento de Software Multiplataforma, da Faculdade de Tecnologia de Registro (Fatec Registro), vinculada ao Centro Paula Souza.
 
 O projeto integra conhecimentos de desenvolvimento de software, Internet das Coisas (IoT), banco de dados e tecnologia aplicada ao agronegócio.
 
@@ -340,12 +422,8 @@ A proposta é desenvolver uma solução que auxilie os produtores na gestão do 
 
 ---
 
-<div align="center">
+🐃 **BUBATAG — Conectando tradição e inovação.**
 
-**🐃 BUBATAG — Conectando tradição e inovação.**
-
-*Tecnologia a serviço do bem-estar animal e da produção sustentável.*
+Tecnologia a serviço do bem-estar animal e da produção sustentável.
 
 [💻 Repositório](https://github.com/bubatag/sistema-frontend) · [🔌 API](https://github.com/bubatag/API-bubatag)
-
-</div>
