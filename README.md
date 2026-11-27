@@ -10,6 +10,31 @@ Por meio da integração entre Internet das Coisas (IoT), desenvolvimento de sof
 
 ---
 
+## 🚀 Acesse o BUBATAG
+
+O sistema BUBATAG está hospedado na plataforma **Render**, permitindo que produtores rurais, avaliadores, integrantes da equipe e demais interessados acessem a aplicação diretamente pelo navegador, sem precisar instalar dependências ou executar o projeto localmente.
+
+### 🌐 Sistema online
+
+**[CLIQUE AQUI PARA ACESSAR O BUBATAG](https://sistema-frontend-sor9.onrender.com/login)**
+
+🔗 Link direto: https://sistema-frontend-sor9.onrender.com/login
+
+A aplicação pode ser acessada de qualquer dispositivo com conexão à internet e um navegador compatível.
+
+### Como acessar?
+
+1. Clique no link de acesso à plataforma.
+2. Aguarde o carregamento da aplicação.
+3. Na tela de login, informe suas credenciais de acesso.
+4. Após a autenticação, navegue pelos módulos disponíveis para conhecer as funcionalidades do sistema.
+
+**Observação:** o frontend está hospedado no Render e utiliza a API do BUBATAG para comunicação e gerenciamento dos dados.
+
+Caso queira executar o projeto localmente para desenvolvimento, manutenção ou modificações no código, consulte a seção [Como executar o projeto localmente](#-como-executar-o-projeto-localmente).
+
+---
+
 ## 📌 Sobre o projeto
 
 O sistema foi desenvolvido para facilitar o acompanhamento das atividades relacionadas à criação de búfalos, oferecendo ao produtor ferramentas para consultar e gerenciar informações do rebanho.
@@ -82,6 +107,8 @@ Entre as informações acompanhadas estão:
 ---
 
 ## 💻 Como executar o projeto localmente
+
+Embora o sistema já esteja disponível online pelo Render, também é possível executar o projeto localmente para desenvolvimento, manutenção e testes.
 
 Siga as instruções abaixo para configurar e executar o sistema em seu computador.
 
@@ -312,12 +339,11 @@ O seed deverá verificar se os registros já existem antes de inseri-los, evitan
 
 Depois que a conta e os dados forem provisionados pelo backend:
 
-1. Execute o frontend seguindo as instruções deste README.
-2. Acesse `http://localhost:5173`.
-3. Abra a tela de login.
-4. Faça login com o email leo@gmail.com e a senha 123456.
-5. Após autenticar, acesse o módulo **Bubalinos**.
-6. Consulte os quatro animais cadastrados e suas respectivas informações.
+1. Acesse o [BUBATAG pelo Render](https://sistema-frontend-sor9.onrender.com/login).
+2. Abra a tela de login.
+3. Faça login com as credenciais de demonstração, caso já estejam cadastradas e habilitadas.
+4. Após autenticar, acesse o módulo **Bubalinos**.
+5. Consulte os quatro animais cadastrados e suas respectivas informações.
 
 Dessa forma, será possível explorar a interface com dados previamente cadastrados, incluindo a identificação dos animais, as etiquetas, os dispositivos e os indicadores de monitoramento.
 
@@ -374,8 +400,8 @@ sistema-frontend/
 │   ├── index.html
 │   ├── package.json               # Dependências e scripts
 │   ├── package-lock.json          # Versões das dependências
-│   ├── vite.config.js              # Configuração do Vite
-│   ├── tailwind.config.js          # Configuração do Tailwind CSS
+│   ├── vite.config.js             # Configuração do Vite
+│   ├── tailwind.config.js         # Configuração do Tailwind CSS
 │   └── README.md                  # Documentação da aplicação
 │
 ├── LICENSE
@@ -426,4 +452,8 @@ A proposta é desenvolver uma solução que auxilie os produtores na gestão do 
 
 Tecnologia a serviço do bem-estar animal e da produção sustentável.
 
-[💻 Repositório](https://github.com/bubatag/sistema-frontend) · [🔌 API](https://github.com/bubatag/API-bubatag)
+**Links do projeto:**
+
+- [💻 Repositório do Frontend](https://github.com/bubatag/sistema-frontend)
+- [🔌 Repositório da API](https://github.com/bubatag/API-bubatag)
+- [🌐 Acessar o BUBATAG online — Render](https://sistema-frontend-sor9.onrender.com/login)
