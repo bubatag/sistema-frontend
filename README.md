@@ -288,8 +288,8 @@ A ideia é disponibilizar um usuário de teste previamente cadastrado, com anima
 | Campo | Informação |
 |---|---|
 | Nome | Produtor Demonstração |
-| E-mail | `demo@bubatag.com` |
-| Senha | `Bubatag@123` |
+| E-mail | `leo@gmail.com` |
+| Senha | `123456` |
 
 **Atenção:** essas credenciais são uma configuração proposta para a conta de demonstração. Elas somente funcionarão depois que o usuário for criado no banco de dados pelo backend. Não representam uma conta cuja existência ou funcionamento já tenha sido confirmado.
 
