@@ -50,14 +50,23 @@ export async function registrarOperacao({
 }
 
 /**
- * Lista as operações pendentes de um usuário.
+ * Lista as operações pendentes ou interrompidas de um usuário.
+ * Operações que ficaram em "sincronizando" podem ser retomadas
+ * após o fechamento inesperado do aplicativo.
  */
 export async function listarOperacoesPendentes(usuarioId) {
-  return db.operacoes
+  const operacoes = await db.operacoes
     .where("usuarioId")
     .equals(String(usuarioId))
-    .and((operacao) => operacao.status === "pendente")
-    .sortBy("criadaEm");
+    .toArray();
+
+  return operacoes
+    .filter((operacao) =>
+      ["pendente", "sincronizando"].includes(operacao.status)
+    )
+    .sort((a, b) => {
+      return new Date(a.criadaEm) - new Date(b.criadaEm);
+    });
 }
 
 /**
@@ -89,7 +98,8 @@ export async function atualizarStatusOperacao(
 }
 
 /**
- * Remove uma operação após a confirmação da API.
+ * Remove uma operação após a confirmação da API
+ * e a atualização do registro local.
  */
 export async function removerOperacao(operationId) {
   await db.operacoes

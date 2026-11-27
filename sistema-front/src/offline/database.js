@@ -72,3 +72,47 @@ db.version(2).stores({
     criadaEm
   `
 });
+
+
+db.version(3).stores({
+  coleiras: `
+    ++id,
+    &clientId,
+    serverId,
+    usuarioId,
+    statusSync,
+    atualizadoEm
+  `,
+
+  bubalinos: `
+    ++id,
+    &clientId,
+    serverId,
+    usuarioId,
+    coleiraClientId,
+    coleira_id,
+    statusSync,
+    atualizadoEm
+  `,
+
+  operacoes: `
+    ++id,
+    &operationId,
+    usuarioId,
+    entidade,
+    acao,
+    clientId,
+    coleiraClientId,
+    status,
+    criadaEm
+  `,
+
+  historicos: `
+    ++id,
+    &registroId,
+    usuarioId,
+    coleiraNome,
+    data
+  `
+});
+

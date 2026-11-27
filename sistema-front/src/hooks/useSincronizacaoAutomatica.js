@@ -1,3 +1,4 @@
+
 import { useCallback, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -14,7 +15,6 @@ export function useSincronizacaoAutomatica() {
   const emAndamento = useRef(false);
 
   const sincronizar = useCallback(async () => {
-    // Evita duas sincronizações ao mesmo tempo.
     if (!usuarioId || emAndamento.current) return null;
 
     emAndamento.current = true;
@@ -25,10 +25,11 @@ export function useSincronizacaoAutomatica() {
         enviarOperacao
       );
 
-      const houveErroDefinitivo = resultado?.erros?.length > 0;
+      const houveAlteracao =
+        resultado?.sincronizadas > 0 ||
+        resultado?.comErro > 0;
 
-      // Atualiza as listas quando algo mudou (sincronizou ou falhou de vez).
-      if (resultado?.sincronizadas > 0 || houveErroDefinitivo) {
+      if (houveAlteracao) {
         await Promise.all([
           queryClient.invalidateQueries({
             queryKey: ['coleiras', usuarioId],
@@ -45,14 +46,23 @@ export function useSincronizacaoAutomatica() {
         );
       }
 
-      // Falhas definitivas: o usuário precisa saber o motivo.
-      if (houveErroDefinitivo) {
+      if (resultado?.erros?.length > 0) {
         resultado.erros.forEach((erro) => {
           toast.error(
             `Não foi possível sincronizar ${erro.rotulo}: ${erro.mensagem}`,
             { duration: 10000 }
           );
         });
+      }
+
+      if (
+        resultado?.aguardandoDependencia > 0 &&
+        resultado?.sincronizadas === 0 &&
+        resultado?.comErro === 0
+      ) {
+        console.info(
+          '[SYNC] Existem registros aguardando a sincronização de suas coleiras.'
+        );
       }
 
       return resultado;
@@ -72,8 +82,6 @@ export function useSincronizacaoAutomatica() {
     const aoVoltarOnline = () => sincronizar();
     window.addEventListener('online', aoVoltarOnline);
 
-    // navigator.onLine não garante que a API responde,
-    // então também tenta periodicamente.
     const timer = setInterval(sincronizar, INTERVALO_MS);
 
     return () => {

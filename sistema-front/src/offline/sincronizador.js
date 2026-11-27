@@ -2,19 +2,22 @@
 import { db } from "./database";
 import {
   listarOperacoesPendentes,
-  atualizarStatusOperacao,
-  removerOperacao
+  atualizarStatusOperacao
 } from "./operacoes";
 
 /**
- * Organiza as operações pendentes.
+ * Organiza e sincroniza as operações pendentes.
  * Coleiras precisam ser sincronizadas antes dos bubalinos.
  */
 export async function sincronizarDados(usuarioId, enviarOperacao) {
   if (!navigator.onLine) {
     return {
       sucesso: false,
-      mensagem: "Sem conexão com a internet."
+      mensagem: "Sem conexão com a internet.",
+      sincronizadas: 0,
+      comErro: 0,
+      aguardandoDependencia: 0,
+      erros: []
     };
   }
 
@@ -23,7 +26,11 @@ export async function sincronizarDados(usuarioId, enviarOperacao) {
   if (operacoes.length === 0) {
     return {
       sucesso: true,
-      mensagem: "Não há operações pendentes."
+      mensagem: "Não há operações pendentes.",
+      sincronizadas: 0,
+      comErro: 0,
+      aguardandoDependencia: 0,
+      erros: []
     };
   }
 
@@ -33,36 +40,43 @@ export async function sincronizarDados(usuarioId, enviarOperacao) {
   };
 
   operacoes.sort((a, b) => {
-    return (
+    const diferenca =
       (ordem[a.entidade] ?? 99) -
-      (ordem[b.entidade] ?? 99)
-    );
+      (ordem[b.entidade] ?? 99);
+
+    return diferenca || new Date(a.criadaEm) - new Date(b.criadaEm);
   });
 
   const resultados = {
     sincronizadas: 0,
     comErro: 0,
-    aguardandoDependencia: 0
+    aguardandoDependencia: 0,
+    erros: []
   };
 
-  // Guarda as coleiras que falharam nesta tentativa de sincronização.
+  // Guarda as coleiras que falharam nesta tentativa.
   const coleirasComErro = new Set();
 
   for (const operacao of operacoes) {
     try {
-      // Impede o envio do bubalino se sua coleira falhou.
+      // Não envia o bubalino se sua coleira falhou.
       if (
         operacao.entidade === "bubalino" &&
         operacao.coleiraClientId &&
         coleirasComErro.has(operacao.coleiraClientId)
       ) {
+        await atualizarStatusOperacao(
+          operacao.operationId,
+          "pendente"
+        );
+
         resultados.aguardandoDependencia++;
         continue;
       }
 
       let operacaoParaEnviar = { ...operacao };
 
-      // Resolve o ID definitivo da coleira antes de enviar o bubalino.
+      // Resolve o ID definitivo da coleira.
       if (operacao.entidade === "bubalino") {
         if (!operacao.coleiraClientId) {
           throw new Error(
@@ -76,6 +90,11 @@ export async function sincronizarDados(usuarioId, enviarOperacao) {
           .first();
 
         if (!coleiraLocal?.serverId) {
+          await atualizarStatusOperacao(
+            operacao.operationId,
+            "pendente"
+          );
+
           resultados.aguardandoDependencia++;
           continue;
         }
@@ -107,34 +126,75 @@ export async function sincronizarDados(usuarioId, enviarOperacao) {
           ? db.coleiras
           : db.bubalinos;
 
-      const registro = await tabela
-        .where("clientId")
-        .equals(operacao.clientId)
-        .first();
+      // Confirmação local e remoção da fila na mesma transação.
+      await db.transaction(
+        "rw",
+        tabela,
+        db.operacoes,
+        async () => {
+          const registro = await tabela
+            .where("clientId")
+            .equals(operacao.clientId)
+            .first();
 
-      if (registro) {
-        await tabela.update(registro.id, {
-          serverId: resposta.serverId,
-          statusSync: "sincronizado",
-          atualizadoEm: new Date().toISOString()
-        });
-      }
+          if (!registro) {
+            throw new Error(
+              "O registro local não foi encontrado. A operação foi mantida na fila."
+            );
+          }
 
-      await removerOperacao(operacao.operationId);
+          await tabela.update(registro.id, {
+            serverId: resposta.serverId,
+            statusSync: "sincronizado",
+            atualizadoEm: new Date().toISOString()
+          });
+
+          await db.operacoes
+            .where("operationId")
+            .equals(operacao.operationId)
+            .delete();
+        }
+      );
 
       resultados.sincronizadas++;
+
     } catch (erro) {
       if (operacao.entidade === "coleira") {
         coleirasComErro.add(operacao.clientId);
       }
 
-      await atualizarStatusOperacao(
-        operacao.operationId,
-        "pendente",
-        erro?.message || "Erro ao sincronizar."
-      );
+      const mensagem =
+        erro?.message || "Erro desconhecido ao sincronizar.";
+
+      try {
+        await atualizarStatusOperacao(
+          operacao.operationId,
+          "pendente",
+          mensagem
+        );
+      } catch (erroStatus) {
+        console.error(
+          "[SYNC] Não foi possível atualizar o status da operação:",
+          erroStatus
+        );
+      }
 
       resultados.comErro++;
+
+      resultados.erros.push({
+        operationId: operacao.operationId,
+        entidade: operacao.entidade,
+        rotulo:
+          operacao.dados?.n_coleira ||
+          operacao.dados?.n_etiqueta ||
+          operacao.clientId,
+        mensagem
+      });
+
+      console.error(
+        `[SYNC] Erro ao sincronizar ${operacao.entidade}:`,
+        erro
+      );
     }
   }
 

@@ -16,11 +16,13 @@ import { api } from '@/services/api';
 import { ENDPOINTS } from '@/services/endpoints';
 import { useColeiras } from '@/hooks/useColeiras';
 import { formatarDataHora, mensagemDeErro } from '@/lib/rebanho';
+import { db } from '@/offline/database';
 
 import PageHeader from '@/components/shared/PageHeader';
 import StatusBadge from '@/components/shared/StatusBadge';
 import EmptyState from '@/components/shared/EmptyState';
 import ErrorState from '@/components/shared/ErrorState';
+
 
 import { Button } from '@/components/ui/button';
 import {
@@ -319,13 +321,66 @@ export default function Historico() {
     enabled: Boolean(usuarioId && animal?.coleira_nome),
 
     queryFn: async () => {
-      const resposta = await api.get(
-        ENDPOINTS.relatorios.historicoColeira(
-          animal.coleira_nome
-        )
-      );
+      try {
+        // 1. Busca o histórico atualizado na API.
+        const resposta = await api.get(
+          ENDPOINTS.relatorios.historicoColeira(
+            animal.coleira_nome
+          )
+        );
 
-      return normalizarRegistros(resposta.data);
+        const registrosRemotos = normalizarRegistros(resposta.data);
+
+        // 2. Persiste uma cópia local para consultas futuras sem conexão.
+        if (registrosRemotos.length > 0) {
+          const registrosLocais = registrosRemotos.map((registro) => ({
+            ...registro,
+            registroId: [
+              String(usuarioId),
+              animal.coleira_nome,
+              String(registro.id),
+            ].join('::'),
+            usuarioId: String(usuarioId),
+            coleiraNome: animal.coleira_nome,
+          }));
+
+          await db.historicos.bulkPut(registrosLocais);
+        }
+
+        return registrosRemotos;
+      } catch (erroAPI) {
+        // 3. Se a API falhar, tenta recuperar a última cópia salva no dispositivo.
+        console.warn(
+          'Não foi possível consultar a API. Tentando carregar o histórico local.',
+          erroAPI
+        );
+
+        const registrosLocais = await db.historicos
+          .where('usuarioId')
+          .equals(String(usuarioId))
+          .and(
+            (registro) =>
+              registro.coleiraNome === animal.coleira_nome
+          )
+          .toArray();
+
+        if (registrosLocais.length === 0) {
+          throw erroAPI;
+        }
+
+        // 4. Retira os metadados internos do IndexedDB e mantém o formato da tela.
+        return registrosLocais
+          .map(({
+            registroId,
+            usuarioId: usuarioLocal,
+            coleiraNome,
+            ...registro
+          }) => registro)
+          .sort(
+            (a, b) =>
+              new Date(a.data).getTime() - new Date(b.data).getTime()
+          );
+      }
     },
 
     staleTime: 30000,
